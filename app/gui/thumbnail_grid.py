@@ -1,5 +1,5 @@
 """Thumbnail grid widget for displaying character card images."""
-
+import os
 from pathlib import Path
 from typing import Optional, List
 from PySide6.QtWidgets import (
@@ -137,6 +137,7 @@ class ThumbnailGrid(QWidget):
         self._resizeTimer: Optional[QTimer] = None
         self._lastWidth = 0
         self._buildIndex = 0
+        self._buildIndexCorrector = 0
         self._buildColumns = 1
         self._isBuilding = False
         
@@ -182,10 +183,35 @@ class ThumbnailGrid(QWidget):
         Args:
             cards: List of CharacterCard instances
         """
-        self.cards = sorted(cards, key=lambda c: c.name.lower())
-        self._cancelBuild()
-        self._refreshGrid()
-    
+        self.cards = cards
+
+    def sortCards(self, sortByName : bool, forceRefresh=False):
+        """
+        Sort the character cards.
+
+        Args:
+            sortByName: bool flag
+        """
+        self.cards = sorted(self.cards, key=lambda c: c.name if sortByName else (c.filePath.count(os.sep), c.filePath.replace('-', '').casefold()))
+        if forceRefresh:
+            self._cancelBuild()
+            self._refreshGrid()
+
+    def filterCards(self, filterTags: str, filterName: str, filterDescr: str, forceRefresh=False):
+        """
+        Filter character cards to display.
+
+        Args:
+            filterTags: tags filter
+            filterName: name filter
+            filterDescr: description filter
+        """
+        for c in self.cards:
+            c.evaluateFilters(filterTags, filterName, filterDescr)
+        if forceRefresh:
+            self._cancelBuild()
+            self._refreshGrid()
+
     def _cancelBuild(self):
         """Cancel any in-progress thumbnail build."""
         if self._isBuilding:
@@ -212,7 +238,8 @@ class ThumbnailGrid(QWidget):
         # Setup for chunked building
         self._buildColumns = max(1, self.width() // (self.thumbnailSize + 20))
         self._buildIndex = 0
-        
+        self._buildIndexCorrector = 0
+
         # Start building in chunks
         QTimer.singleShot(10, self._buildNextBatch)
     
@@ -222,11 +249,15 @@ class ThumbnailGrid(QWidget):
             return
         
         endIndex = min(self._buildIndex + self.BATCH_SIZE, len(self.cards))
-        
+
         for i in range(self._buildIndex, endIndex):
             card = self.cards[i]
-            col = i % self._buildColumns
-            rowIndex = i // self._buildColumns
+            if card.isFiltered:
+                self._buildIndexCorrector += 1
+                continue
+
+            col = (i - self._buildIndexCorrector) % self._buildColumns
+            rowIndex = (i - self._buildIndexCorrector) // self._buildColumns
             
             item = ThumbnailItem(card.filePath, card, self.thumbnailSize, self.gridWidget)
             item.clicked.connect(self._onThumbnailClicked)

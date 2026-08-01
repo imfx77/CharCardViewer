@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
-    QFileDialog, QSlider, QLabel, QToolBar, QStatusBar, QPushButton
+    QFileDialog, QSlider, QLabel, QToolBar, QStatusBar, QPushButton, QCheckBox, QSizePolicy, QWidgetAction, QLineEdit
 )
-from PySide6.QtCore import Qt, QThread, Signal, QObject
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize
 from PySide6.QtGui import QAction, QIcon
 
 from app.models.character_card import CharacterCard
@@ -24,7 +24,7 @@ class ExifExtractionWorker(QObject):
     finished = Signal(dict)  # Emits {filePath: base64Data}
     error = Signal(str)  # Emits error message
     
-    def __init__(self, directoryPath: str):
+    def __init__(self, directoryPath: str, recursive: bool = False):
         """
         Initialize worker.
         
@@ -33,12 +33,13 @@ class ExifExtractionWorker(QObject):
         """
         super().__init__()
         self.directoryPath = directoryPath
-    
+        self.recursive = recursive
+
     def extract(self):
         """Perform EXIF extraction."""
         try:
             extractor = CustomPngExifExtractor()
-            result = extractor.extractFromDirectory(self.directoryPath)
+            result = extractor.extractFromDirectory(self.directoryPath, self.recursive)
             self.finished.emit(result)
         except Exception as e:
             self.error.emit(str(e))
@@ -56,8 +57,8 @@ class MainWindow(QMainWindow):
         self.parser = CardParser()
         
         self._setupUi()
-        self._loadSettings()
-    
+        self._loadWindowSettings()
+
     def _setupUi(self):
         """Set up the UI."""
         self.setWindowTitle("Character Card Viewer")
@@ -94,11 +95,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.splitter)
         centralWidget.setLayout(layout)
         
-        # Menu bar
-        self._createMenuBar()
-        
         # Toolbar
-        self._createToolbar()
+        self._createToolbars()
         
         # Status bar
         self.statusBar = QStatusBar()
@@ -112,40 +110,39 @@ class MainWindow(QMainWindow):
         self.thumbnailGrid.refreshStarted.connect(self._onRefreshStarted)
         self.thumbnailGrid.refreshFinished.connect(self._onRefreshFinished)
     
-    def _createMenuBar(self):
-        """Create menu bar."""
-        menubar = self.menuBar()
-        
-        # File menu
-        fileMenu = menubar.addMenu("File")
-        
-        openAction = QAction("Select Folder...", self)
-        openAction.setShortcut("Ctrl+O")
-        openAction.triggered.connect(self._selectFolder)
-        fileMenu.addAction(openAction)
-        
-        fileMenu.addSeparator()
-        
-        exitAction = QAction("Exit", self)
-        exitAction.setShortcut("Ctrl+Q")
-        exitAction.triggered.connect(self.close)
-        fileMenu.addAction(exitAction)
-        
-        # Settings menu
-        settingsMenu = menubar.addMenu("Settings")
-        
-        thumbnailSizeAction = QAction("Thumbnail Size...", self)
-        thumbnailSizeAction.triggered.connect(self._showThumbnailSizeDialog)
-        settingsMenu.addAction(thumbnailSizeAction)
-    
-    def _createToolbar(self):
-        """Create toolbar."""
+    def _createToolbars(self):
+        """Create main toolbar."""
         toolbar = QToolBar()
         self.addToolBar(toolbar)
-        
+
+        # Select Folder button for thumbnail size
+        self.selectFolderButton = QPushButton("  Select Folder  ")
+        self.selectFolderButton.clicked.connect(self._onSelectFolder)
+        toolbar.addWidget(self.selectFolderButton)
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+
+        # Sort by Name checkbox
+        self.scanSubfoldersCheckbox = QCheckBox(" Scan Subfolders  ")
+        self.scanSubfoldersCheckbox.clicked.connect(self._onScanSubfolders)
+        self.scanSubfoldersCheckbox.setChecked(self.settings.getScanSubfolders())
+        toolbar.addWidget(self.scanSubfoldersCheckbox)
+
+        # Sort by Name checkbox
+        self.sortByNameCheckbox = QCheckBox(" Sort by Name  ")
+        self.sortByNameCheckbox.clicked.connect(self._onSortByName)
+        self.sortByNameCheckbox.setChecked(self.settings.getSortByName())
+        toolbar.addWidget(self.sortByNameCheckbox)
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+
         # Thumbnail size slider
-        toolbar.addWidget(QLabel("Thumbnail Size:"))
-        
+        toolbar.addWidget(QLabel("  Thumbnail Size :  "))
+
         self.thumbnailSlider = QSlider(Qt.Horizontal)
         self.thumbnailSlider.setMinimum(50)
         self.thumbnailSlider.setMaximum(500)
@@ -154,32 +151,60 @@ class MainWindow(QMainWindow):
         self.thumbnailSlider.setTickInterval(50)
         self.thumbnailSlider.setFixedWidth(200)
         toolbar.addWidget(self.thumbnailSlider)
-        
-        self.sizeLabel = QLabel(str(self.thumbnailSlider.value()))
-        self.sizeLabel.setFixedWidth(30)
-        self.thumbnailSlider.valueChanged.connect(lambda v: self.sizeLabel.setText(str(v)))
+
+        self.sizeLabel = QLabel("  " + str(self.thumbnailSlider.value()) + "  ")
+        self.thumbnailSlider.valueChanged.connect(lambda v: self.sizeLabel.setText("  " + str(v) + "  "))
         toolbar.addWidget(self.sizeLabel)
-        
+
         # Apply button for thumbnail size
-        self.applyButton = QPushButton("Apply")
-        self.applyButton.setFixedWidth(60)
-        self.applyButton.clicked.connect(self._onApplyThumbnailSize)
-        toolbar.addWidget(self.applyButton)
-        
+        self.applyThumbnailSizeButton = QPushButton("  Apply  ")
+        self.applyThumbnailSizeButton.clicked.connect(self._onApplyThumbnailSize)
+        toolbar.addWidget(self.applyThumbnailSizeButton)
+
         # Initialize thumbnail grid with saved size
         self.thumbnailGrid.setThumbnailSize(self.settings.getThumbnailSize())
-    
-    def _loadSettings(self):
+
+        self.addToolBarBreak()
+
+        """Create filters toolbar."""
+        filters = QToolBar()
+        self.addToolBar(filters)
+
+        filters.addWidget(QLabel("  Tag :  "))
+        self.filterTagsInput = QLineEdit()
+        self.filterTagsInput.setText(self.settings.getFilterTags())
+        self.filterTagsInput.textChanged.connect(self._onFiltersChanged)
+        filters.addWidget(self.filterTagsInput)
+        filters.addSeparator()
+        filters.addSeparator()
+
+        filters.addWidget(QLabel("  Name :  "))
+        self.filterNameInput = QLineEdit()
+        self.filterNameInput.setText(self.settings.getFilterName())
+        self.filterNameInput.textChanged.connect(self._onFiltersChanged)
+        filters.addWidget(self.filterNameInput)
+        filters.addSeparator()
+        filters.addSeparator()
+
+        filters.addWidget(QLabel("  Description :  "))
+        self.filterDescrInput = QLineEdit()
+        self.filterDescrInput.setText(self.settings.getFilterDescr())
+        self.filterDescrInput.textChanged.connect(self._onFiltersChanged)
+        filters.addWidget(self.filterDescrInput)
+
+    def _loadWindowSettings(self):
         """Load window settings."""
         width, height = self.settings.getWindowGeometry()
         self.resize(width, height)
         
         # Auto-load last folder if available
         lastFolder = self.settings.getLastFolder()
+        recursive = self.settings.getScanSubfolders()
         if lastFolder and Path(lastFolder).exists():
+            self.setWindowTitle("Character Card Viewer - " + lastFolder)
             self.currentDirectory = lastFolder
             self.statusBar.showMessage("Loading last folder...")
-            self._extractAndLoadCards(lastFolder)
+            self._extractAndLoadCards(lastFolder, recursive)
     
     def _onSplitterMoved(self, pos: int, index: int):
         """Handle splitter movement."""
@@ -193,7 +218,30 @@ class MainWindow(QMainWindow):
         self.thumbnailGrid.setThumbnailSize(value)
         self.statusBar.showMessage(f"Thumbnail size set to {value}px")
     
-    def _selectFolder(self):
+    def _onScanSubfolders(self):
+        """Handle ScanSubfolders checkbox click - update subfolders scanning."""
+        value = self.scanSubfoldersCheckbox.isChecked()
+        self.settings.setScanSubfolders(value)
+        self.statusBar.showMessage("Extracting EXIF data...")
+        self._extractAndLoadCards(self.currentDirectory, value)
+
+    def _onSortByName(self):
+        """Handle SortByName checkbox click - update sorting."""
+        value = self.sortByNameCheckbox.isChecked()
+        self.settings.setSortByName(value)
+        self.thumbnailGrid.sortCards(value, True)
+        self.statusBar.showMessage(f"Sort By Name set to {value}")
+
+    def _onFiltersChanged(self):
+        """Handle filters change - update filtering."""
+        filterTags = self.filterTagsInput.text()
+        filterName = self.filterNameInput.text()
+        filterDescr = self.filterDescrInput.text()
+        self.settings.setFilters(filterTags, filterName, filterDescr)
+        self.thumbnailGrid.filterCards(filterTags, filterName, filterDescr, True)
+        self.statusBar.showMessage(f"Filters changed to Tag=[{filterTags}] and Name=[{filterName}] and Descripton=[{filterDescr}]")
+
+    def _onSelectFolder(self):
         """Select folder containing character cards."""
         # Use last folder as starting directory if available
         startDir = self.settings.getLastFolder()
@@ -205,14 +253,18 @@ class MainWindow(QMainWindow):
             "Select Folder with Character Cards",
             startDir
         )
-        
+
+        self.dataPanel.setCard(None)
+
         if directory:
+            self.setWindowTitle("Character Card Viewer - " + directory)
             self.currentDirectory = directory
             self.settings.setLastFolder(directory)
             self.statusBar.showMessage("Extracting EXIF data...")
-            self._extractAndLoadCards(directory)
+            recursive = self.settings.getScanSubfolders()
+            self._extractAndLoadCards(directory, recursive)
     
-    def _extractAndLoadCards(self, directoryPath: str):
+    def _extractAndLoadCards(self, directoryPath: str, recursive: bool):
         """
         Extract EXIF data and load character cards.
         
@@ -224,7 +276,7 @@ class MainWindow(QMainWindow):
         
         # Create worker thread
         self.workerThread = QThread()
-        self.worker = ExifExtractionWorker(directoryPath)
+        self.worker = ExifExtractionWorker(directoryPath, recursive)
         self.worker.moveToThread(self.workerThread)
         
         self.workerThread.started.connect(self.worker.extract)
@@ -247,9 +299,14 @@ class MainWindow(QMainWindow):
                 card = self.parser.parseBase64(base64Data, filePath)
                 if card:
                     self.cards.append(card)
-        
+
         # Grid will emit refreshStarted/refreshFinished signals
         self.thumbnailGrid.setCards(self.cards)
+        self.thumbnailGrid.sortCards(self.sortByNameCheckbox.isChecked())
+        self.thumbnailGrid.filterCards(self.filterTagsInput.text(),
+                                       self.filterNameInput.text(),
+                                       self.filterDescrInput.text(),
+                                       True)
         self.statusBar.showMessage(f"Loaded {len(self.cards)} character cards")
     
     def _onExtractionError(self, errorMsg: str):

@@ -16,6 +16,7 @@ class CharacterCard:
     alternateGreetings: List[str]
     tags: List[str]
     filePath: str
+    isFiltered : bool
     
     @classmethod
     def fromJson(cls, data: Dict[str, Any], filePath: str) -> Optional["CharacterCard"]:
@@ -69,7 +70,8 @@ class CharacterCard:
                 firstMes=firstMes if firstMes else "",
                 alternateGreetings=alternateGreetings,
                 tags=tags,
-                filePath=filePath
+                filePath=filePath,
+                isFiltered=False
             )
         except Exception as e:
             print(f"[WARNING] Failed to parse card {filePath}: {e}")
@@ -97,4 +99,25 @@ class CharacterCard:
     def getGreetingCount(self) -> int:
         """Get total number of greetings (first_mes + alternate_greetings)."""
         return 1 + len(self.alternateGreetings)
+
+    def evaluateFilters(self,filterTags: str, filterName: str, filterDescr: str):
+        if filterName and (filterName.lower().strip() not in self.name.lower()):
+            self.isFiltered = True
+            return
+
+        if filterDescr:
+            splitDescrFilters = filterDescr.split("|")
+            for descrFilter in splitDescrFilters:
+                if descrFilter.lower().strip() not in self.description.lower():
+                    self.isFiltered = True
+                    return
+
+        if filterTags:
+            splitTagFilters = filterTags.split("|")
+            for tagFilter in splitTagFilters:
+                if all(tagFilter.lower().strip() not in tag.lower() for tag in self.tags):
+                    self.isFiltered = True
+                    return
+
+        self.isFiltered = False
 
