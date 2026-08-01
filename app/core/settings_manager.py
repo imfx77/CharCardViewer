@@ -31,6 +31,8 @@ class SettingsManager:
                 pass
 
         return {
+            "windowPosX": 100,
+            "windowPosY": 100,
             "windowWidth": 1200,
             "windowHeight": 800,
             "splitterPosition": [900, 300],  # Left, Right
@@ -121,18 +123,24 @@ class SettingsManager:
     def getWindowGeometry(self) -> tuple:
         """Get window geometry (width, height)."""
         return (
+            self.settings.get("windowPosX", 100),
+            self.settings.get("windowPosY", 100),
             self.settings.get("windowWidth", 1200),
             self.settings.get("windowHeight", 800)
         )
 
-    def setWindowGeometry(self, width: int, height: int):
+    def setWindowGeometry(self, pos_x :int, pos_y : int, width: int, height: int):
         """
         Set window geometry.
         
         Args:
+            pos_x: Window position x
+            pos_x: Window position y
             width: Window width
             height: Window height
         """
+        self.settings["windowPosX"] = pos_x
+        self.settings["windowPosY"] = pos_y
         self.settings["windowWidth"] = width
         self.settings["windowHeight"] = height
         self._saveSettings()

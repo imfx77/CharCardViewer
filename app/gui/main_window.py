@@ -194,9 +194,10 @@ class MainWindow(QMainWindow):
 
     def _loadWindowSettings(self):
         """Load window settings."""
-        width, height = self.settings.getWindowGeometry()
+        pos_x, pos_y, width, height = self.settings.getWindowGeometry()
         self.resize(width, height)
-        
+        self.move(pos_x, pos_y)
+
         # Auto-load last folder if available
         lastFolder = self.settings.getLastFolder()
         recursive = self.settings.getScanSubfolders()
@@ -351,6 +352,6 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """Handle window close event."""
         # Save window geometry
-        self.settings.setWindowGeometry(self.width(), self.height())
+        self.settings.setWindowGeometry(self.x(), self.y(), self.width(), self.height())
         event.accept()
 
