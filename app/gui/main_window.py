@@ -51,11 +51,23 @@ class MainWindow(QMainWindow):
     def __init__(self):
         """Initialize main window."""
         super().__init__()
-        self.settings = SettingsManager()
         self.currentDirectory: Optional[str] = None
         self.cards: list[CharacterCard] = []
         self.parser = CardParser()
-        
+
+        # Obtain the base resource path
+        try:
+            # PyInstaller stores data files in a tmp folder refered to as _MEIPASS
+            import sys, os
+            self.baseResourcePath = Path(sys._MEIPASS)
+            self.baseResourcePath = self.baseResourcePath.joinpath('CharCardViewer')
+            self.appPath = Path(os.path.dirname(sys.executable))
+        except Exception:
+            self.appPath = Path(__file__).parent.parent.parent
+            self.baseResourcePath = self.appPath
+
+        self.settings = SettingsManager(self.appPath)
+
         self._setupUi()
         self._loadWindowSettings()
 
@@ -64,7 +76,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Character Card Viewer")
         
         # Set window icon
-        iconPath = Path(__file__).parent.parent.parent / "images" / "icon.ico"
+        iconPath = self.baseResourcePath.joinpath('images/icon.ico')
         if iconPath.exists():
             self.setWindowIcon(QIcon(str(iconPath)))
         
@@ -79,7 +91,7 @@ class MainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Horizontal)
         
         # Thumbnail grid (left)
-        self.thumbnailGrid = ThumbnailGrid()
+        self.thumbnailGrid = ThumbnailGrid(str(self.appPath))
         self.thumbnailGrid.thumbnailSelected.connect(self._onThumbnailSelected)
         self.splitter.addWidget(self.thumbnailGrid)
         

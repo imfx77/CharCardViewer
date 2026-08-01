@@ -8,7 +8,7 @@ from typing import Optional
 class SettingsManager:
     """Manage application settings."""
 
-    def __init__(self, settingsFile: Optional[str] = None):
+    def __init__(self, app_path : Path, settingsFile: Optional[str] = None):
         """
         Initialize settings manager.
         
@@ -16,7 +16,7 @@ class SettingsManager:
             settingsFile: Path to settings JSON file
         """
         if settingsFile is None:
-            settingsFile = Path(__file__).parent.parent.parent / "settings.json"
+            settingsFile = app_path.joinpath('settings.json')
 
         self.settingsFile = Path(settingsFile)
         self.settings = self._loadSettings()

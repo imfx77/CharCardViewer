@@ -6,10 +6,10 @@ from PIL import Image
 from pathlib import Path
 
 
-def getThumbnailCache(image_path : str, size=(256, 256)):
+def getThumbnailCache(app_path : str, image_path : str, size=(256, 256)):
 
     # Ensure cache directory exists
-    thumbnails_cache_dir = Path(__file__).parent.parent.parent / ".thumbs_cache"
+    thumbnails_cache_dir = Path(app_path).joinpath('.thumbs_cache')
     os.makedirs(thumbnails_cache_dir, exist_ok=True)
 
     # Stable prefix based only on image path

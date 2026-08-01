@@ -18,7 +18,7 @@ class ThumbnailItem(QWidget):
     
     selected = Signal(str)  # Emits file path when selected
     
-    def __init__(self, filePath: str, card: Optional[CharacterCard], size: int, parent=None):
+    def __init__(self, app_path : str, filePath: str, card: Optional[CharacterCard], size: int, parent=None):
         """
         Initialize thumbnail item.
         
@@ -35,7 +35,7 @@ class ThumbnailItem(QWidget):
         self.isSelected = False
         
         self._setupUi()
-        self._loadThumbnail()
+        self._loadThumbnail(app_path)
     
     def _setupUi(self):
         """Set up the UI for the thumbnail item."""
@@ -74,9 +74,9 @@ class ThumbnailItem(QWidget):
         self.setLayout(layout)
         self.setFixedWidth(self.size + 10)
 
-    def _loadThumbnail(self):
+    def _loadThumbnail(self, app_path : str):
         """Load thumbnail image."""
-        thumbnailImagePath = getThumbnailCache(self.filePath, [self.size - 10, self.size - 10])
+        thumbnailImagePath = getThumbnailCache(app_path, self.filePath, [self.size - 10, self.size - 10])
 
         image = QImage(thumbnailImagePath)
         pixmap = QPixmap.fromImage(image)
@@ -124,7 +124,7 @@ class ThumbnailGrid(QWidget):
     # Batch size for chunked loading (process this many items then yield to event loop)
     BATCH_SIZE = 5
     
-    def __init__(self, parent=None):
+    def __init__(self, app_path : str, parent=None):
         """
         Initialize thumbnail grid.
         
@@ -132,6 +132,7 @@ class ThumbnailGrid(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
+        self.app_path = app_path
         self.thumbnailSize = 150
         self.cards: List[CharacterCard] = []
         self.thumbnailItems: List[ThumbnailItem] = []
@@ -261,7 +262,7 @@ class ThumbnailGrid(QWidget):
             col = (i - self._buildIndexCorrector) % self._buildColumns
             rowIndex = (i - self._buildIndexCorrector) // self._buildColumns
             
-            item = ThumbnailItem(card.filePath, card, self.thumbnailSize, self.gridWidget)
+            item = ThumbnailItem(self.app_path, card.filePath, card, self.thumbnailSize, self.gridWidget)
             item.selected.connect(self._onThumbnailSelected)
             self.gridLayout.addWidget(item, rowIndex, col)
             self.thumbnailItems.append(item)
