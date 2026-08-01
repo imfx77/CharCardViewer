@@ -41,3 +41,4 @@ uv.lock
 
 # Custom start file ()
 start_custom.bat
+/.thumbs_cache/

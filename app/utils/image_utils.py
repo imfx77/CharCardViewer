@@ -1,78 +1,48 @@
 """Image utility functions for thumbnail generation."""
 
-from typing import Optional
+import os
+import hashlib
 from PIL import Image
-import io
+from pathlib import Path
 
 
-class ThumbnailCache:
-    """Cache for generated thumbnails."""
-    
-    def __init__(self):
-        """Initialize thumbnail cache."""
-        self.cache: dict = {}
-    
-    def getThumbnail(self, filePath: str, size: int) -> Optional[bytes]:
-        """
-        Get thumbnail from cache or generate it.
-        
-        Args:
-            filePath: Path to image file
-            size: Thumbnail size in pixels
-            
-        Returns:
-            Thumbnail image bytes (PNG format) or None
-        """
-        cacheKey = f"{filePath}:{size}"
-        
-        if cacheKey in self.cache:
-            return self.cache[cacheKey]
-        
-        thumbnail = self._generateThumbnail(filePath, size)
-        if thumbnail:
-            self.cache[cacheKey] = thumbnail
-        
-        return thumbnail
-    
-    def _generateThumbnail(self, filePath: str, size: int) -> Optional[bytes]:
-        """
-        Generate thumbnail from image file.
-        
-        Args:
-            filePath: Path to image file
-            size: Thumbnail size in pixels
-            
-        Returns:
-            Thumbnail image bytes (PNG format) or None
-        """
+def getThumbnailCache(image_path : str, size=(256, 256)):
+
+    # Ensure cache directory exists
+    thumbnails_cache_dir = Path(__file__).parent.parent.parent / ".thumbs_cache"
+    os.makedirs(thumbnails_cache_dir, exist_ok=True)
+
+    # Stable prefix based only on image path
+    prefix = hashlib.sha1(image_path.encode()).hexdigest()
+
+    # Get last modified timestamp of original file
+    mtime = Path(image_path).stat().st_mtime
+
+    # Hash only the changing parts (size + mtime)
+    variable_key = f"{size}-{mtime}"
+    variable_hash = hashlib.sha1(variable_key.encode()).hexdigest()
+
+    # Final filename: <prefix>_<variable_hash>.jpg
+    cache_name = f"{prefix}_{variable_hash}.jpg"
+    cache_path = thumbnails_cache_dir / cache_name
+
+    # If cached thumbnail exists → return it
+    if os.path.exists(cache_path):
+        return cache_path
+
+    # Remove stale thumbnails for this image
+    for f in thumbnails_cache_dir.glob(f"{prefix}_*.jpg"):
         try:
-            image = Image.open(filePath)
-            image.thumbnail((size, size), Image.Resampling.LANCZOS)
-            
-            # Convert to bytes
-            buffer = io.BytesIO()
-            image.save(buffer, format="PNG")
-            return buffer.getvalue()
-        
+            f.unlink()
         except Exception:
-            return None
-    
-    def clearCache(self):
-        """Clear the thumbnail cache."""
-        self.cache.clear()
-    
-    def invalidateFile(self, filePath: str):
-        """
-        Invalidate cache for a specific file.
-        
-        Args:
-            filePath: Path to file to invalidate
-        """
-        keysToRemove = [key for key in self.cache.keys() if key.startswith(f"{filePath}:")]
-        for key in keysToRemove:
-            del self.cache[key]
+            pass
 
+    # Otherwise generate thumbnail
+    img = Image.open(image_path)
+    img.thumbnail(size)
+    imgRGB = img.convert("RGB")
+    imgRGB.save(cache_path)
+    #imgRGB.save(cache_path, format="JPEG", optimize=True, compress_level=9)
 
-# Global thumbnail cache instance
-thumbnailCache = ThumbnailCache()
+    return cache_path
 

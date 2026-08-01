@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, QSize, Signal, QTimer, QCoreApplication
 from PySide6.QtGui import QPixmap, QImage
 
 from app.models.character_card import CharacterCard
-from app.utils.image_utils import thumbnailCache
+from app.utils.image_utils import getThumbnailCache
 
 
 class ThumbnailItem(QWidget):
@@ -74,16 +74,12 @@ class ThumbnailItem(QWidget):
     
     def _loadThumbnail(self):
         """Load thumbnail image."""
-        thumbnailBytes = thumbnailCache.getThumbnail(self.filePath, self.size - 10)
-        
-        if thumbnailBytes:
-            image = QImage.fromData(thumbnailBytes)
-            pixmap = QPixmap.fromImage(image)
-            self.thumbnailButton.setIcon(pixmap)
-        else:
-            # Set placeholder text
-            self.thumbnailButton.setText("No\nImage")
-    
+        thumbnailImagePath = getThumbnailCache(self.filePath, [self.size - 10, self.size - 10])
+
+        image = QImage(thumbnailImagePath)
+        pixmap = QPixmap.fromImage(image)
+        self.thumbnailButton.setIcon(pixmap)
+
     def setSelected(self, selected: bool):
         """
         Set selection state.
