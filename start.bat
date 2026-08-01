@@ -9,23 +9,6 @@ setlocal enabledelayedexpansion
 echo Character Card Viewer - Starting...
 echo ====================================
 
-REM Check if exiftool exists
-where exiftool >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    echo [OK] exiftool found
-) else (
-    if exist "exiftool\exiftool.exe" (
-        echo [OK] exiftool found locally
-        set "PATH=!CD!\exiftool;!PATH!"
-    ) else (
-        echo [WARNING] exiftool not found!
-        echo Please run install.bat first or install exiftool manually
-        echo.
-        pause
-        exit /b 1
-    )
-)
-
 REM Check if conda environment is active
 if defined CONDA_PREFIX (
     echo [OK] Conda environment detected: %CONDA_PREFIX%

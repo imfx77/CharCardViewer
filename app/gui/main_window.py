@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtGui import QAction, QIcon
 
 from app.models.character_card import CharacterCard
-from app.core.exif_extractor import ExifExtractor
+from app.core.custom_png_exif_extractor import CustomPngExifExtractor
 from app.core.card_parser import CardParser
 from app.core.settings_manager import SettingsManager
 from app.gui.thumbnail_grid import ThumbnailGrid
@@ -37,7 +37,7 @@ class ExifExtractionWorker(QObject):
     def extract(self):
         """Perform EXIF extraction."""
         try:
-            extractor = ExifExtractor()
+            extractor = CustomPngExifExtractor()
             result = extractor.extractFromDirectory(self.directoryPath)
             self.finished.emit(result)
         except Exception as e:

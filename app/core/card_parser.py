@@ -37,14 +37,14 @@ class CardParser:
             padding = 4 - (len(cleanBase64) % 4)
             if padding != 4:
                 cleanBase64 += "=" * padding
-            
+
             # Decode Base64
             try:
                 jsonBytes = base64.b64decode(cleanBase64)
             except Exception:
                 # Try without padding fix
                 jsonBytes = base64.b64decode(base64Data.strip())
-            
+
             # Try UTF-8 first, then other encodings
             jsonStr = None
             for encoding in ["utf-8", "utf-8-sig", "latin-1"]:
@@ -58,7 +58,7 @@ class CardParser:
                 print(f"[WARNING] Could not decode {filePath}: encoding error")
                 self.cache[filePath] = None
                 return None
-            
+
             # Parse JSON - handle "Extra data" errors by finding valid JSON
             data = None
             try:
@@ -120,8 +120,8 @@ class CardParser:
             CharacterCard instance or None if parsing fails
         """
         if base64Data is None:
-            from app.core.exif_extractor import ExifExtractor
-            extractor = ExifExtractor()
+            from app.core.custom_png_exif_extractor import CustomPngExifExtractor
+            extractor = CustomPngExifExtractor()
             base64Data = extractor.extractFromFile(filePath)
         
         if base64Data is None:
