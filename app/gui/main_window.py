@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         
         # Thumbnail grid (left)
         self.thumbnailGrid = ThumbnailGrid()
-        self.thumbnailGrid.thumbnailClicked.connect(self._onThumbnailClicked)
+        self.thumbnailGrid.thumbnailSelected.connect(self._onThumbnailSelected)
         self.splitter.addWidget(self.thumbnailGrid)
         
         # Data panel (right)
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready")
-        
+
         # Loading overlay (parent to central widget so it overlays content)
         self.loadingOverlay = LoadingOverlay(centralWidget)
         
@@ -316,13 +316,13 @@ class MainWindow(QMainWindow):
     
     def _onRefreshStarted(self):
         """Handle thumbnail grid refresh start."""
-        self.loadingOverlay.showOverlay("Rebuilding thumbnails...")
-    
+        self.loadingOverlay.hideOverlay()
+
     def _onRefreshFinished(self):
         """Handle thumbnail grid refresh completion."""
         self.loadingOverlay.hideOverlay()
     
-    def _onThumbnailClicked(self, filePath: str):
+    def _onThumbnailSelected(self, filePath: str):
         """
         Handle thumbnail click.
         

@@ -2,14 +2,51 @@
 
 from typing import Optional
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QScrollArea, QLabel, QPushButton, QHBoxLayout
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QPropertyAnimation
 from PySide6.QtGui import QFont
 
 from app.models.character_card import CharacterCard
 from app.gui.flow_layout import FlowLayout
 
+
+class CollapsibleWidget(QWidget):
+    def __init__(self, title, content_widget):
+        super().__init__()
+        titleFont = QFont()
+        titleFont.setPointSize(12)
+        titleFont.setBold(True)
+
+        self.title = QPushButton("△  " + title + "  △")
+        self.title.setCheckable(True)
+        self.title.setChecked(True)
+        self.title.setFont(titleFont)
+
+        self.content = content_widget
+
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.title)
+        self.layout.addWidget(self.content)
+
+        self.title.toggled.connect(self.toggle)
+
+    def toggle(self, checked):
+        MAX_SIZE = 16777215
+        predicted_height = self.height() - self.content.height()
+        self.title.setText(self.title.text().replace('▼', '△') if checked else self.title.text().replace('△', '▼'))
+        self.content.setMaximumHeight(MAX_SIZE if checked else 0)
+        self.setMaximumHeight(MAX_SIZE if checked else predicted_height)
+
+class CollapsibleTextWidget(CollapsibleWidget):
+    def __init__(self, title, content):
+
+        content_widget = QLabel(content)
+        content_widget.setWordWrap(True)
+        content_widget.setStyleSheet("padding: 5px;")
+        content_widget.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+
+        super().__init__(title, content_widget)
 
 class DataPanel(QWidget):
     """Panel for displaying character card data."""
@@ -32,21 +69,29 @@ class DataPanel(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 10, 10, 10)
         
-        # Scroll area for content
-        self.scrollArea = QScrollArea()
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        
+        # Header widget
+        self.headerWidget = QWidget()
+        self.headerLayout = QVBoxLayout()
+        self.headerLayout.setSpacing(15)
+        self.headerLayout.setContentsMargins(10, 10, 10, 10)
+        self.headerWidget.setLayout(self.headerLayout)
+
         # Content widget
         self.contentWidget = QWidget()
         self.contentLayout = QVBoxLayout()
         self.contentLayout.setSpacing(15)
         self.contentLayout.setContentsMargins(10, 10, 10, 10)
         self.contentWidget.setLayout(self.contentLayout)
-        
+
+        # Scroll area for content
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scrollArea.setWidget(self.contentWidget)
+
+        layout.addWidget(self.headerWidget)
         layout.addWidget(self.scrollArea)
-        
+
         self.setLayout(layout)
         self._showEmptyState()
     
@@ -56,16 +101,22 @@ class DataPanel(QWidget):
         
         label = QLabel("Select a character card to view details")
         label.setAlignment(Qt.AlignCenter)
-        label.setStyleSheet("color: #888; font-size: 14px;")
+        label.setStyleSheet("color: #888; font-size: 24px;")
+        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         self.contentLayout.addWidget(label)
     
     def _clearContent(self):
+        """Clear all title widgets."""
+        while self.headerLayout.count():
+            child = self.headerLayout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
         """Clear all content widgets."""
         while self.contentLayout.count():
             child = self.contentLayout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-    
+
     def setCard(self, card: Optional[CharacterCard]):
         """
         Set character card to display.
@@ -87,6 +138,12 @@ class DataPanel(QWidget):
         
         card = self.currentCard
         
+        # File (header)
+        fileLabel = QLabel(card.filePath)
+        fileLabel.setWordWrap(True)
+        fileLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        self.headerLayout.addWidget(fileLabel)
+
         # Name (header)
         nameLabel = QLabel(card.name)
         nameFont = QFont()
@@ -94,9 +151,10 @@ class DataPanel(QWidget):
         nameFont.setBold(True)
         nameLabel.setFont(nameFont)
         nameLabel.setWordWrap(True)
-        self.contentLayout.addWidget(nameLabel)
-        
-        # Tags (if any)
+        nameLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        self.headerLayout.addWidget(nameLabel)
+
+        # Tags (if any) (header)
         if card.tags:
             self._addTagsSection(card.tags)
         
@@ -127,18 +185,9 @@ class DataPanel(QWidget):
             title: Section title
             content: Section content
         """
-        titleLabel = QLabel(title)
-        titleFont = QFont()
-        titleFont.setPointSize(12)
-        titleFont.setBold(True)
-        titleLabel.setFont(titleFont)
-        self.contentLayout.addWidget(titleLabel)
-        
-        contentLabel = QLabel(content)
-        contentLabel.setWordWrap(True)
-        contentLabel.setStyleSheet("padding: 5px;")
-        self.contentLayout.addWidget(contentLabel)
-    
+        section = CollapsibleTextWidget(title, content)
+        self.contentLayout.addWidget(section)
+
     def _addTagsSection(self, tags: list):
         """
         Add tags section with styled tag badges.
@@ -160,13 +209,14 @@ class DataPanel(QWidget):
                     color: white;
                     padding: 4px 10px;
                     border-radius: 12px;
-                    font-size: 11px;
+                    font-size: 14px;
                 }
             """)
+            tagLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
             tagsLayout.addWidget(tagLabel)
         
         tagsContainer.setLayout(tagsLayout)
-        self.contentLayout.addWidget(tagsContainer)
+        self.headerLayout.addWidget(tagsContainer)
     
     def _addGreetingSection(self, card: CharacterCard):
         """
@@ -175,42 +225,51 @@ class DataPanel(QWidget):
         Args:
             card: CharacterCard instance
         """
-        titleLabel = QLabel("Greeting")
-        titleFont = QFont()
-        titleFont.setPointSize(12)
-        titleFont.setBold(True)
-        titleLabel.setFont(titleFont)
-        self.contentLayout.addWidget(titleLabel)
-        
+
         # Navigation controls
         navLayout = QHBoxLayout()
-        
-        prevButton = QPushButton("←")
-        prevButton.setEnabled(self.currentGreetingIndex > 0)
-        prevButton.clicked.connect(lambda: self._navigateGreeting(-1))
-        navLayout.addWidget(prevButton)
-        
-        greetingLabel = QLabel(card.getCurrentGreeting(self.currentGreetingIndex))
-        greetingLabel.setWordWrap(True)
-        greetingLabel.setStyleSheet("padding: 5px;")
-        navLayout.addWidget(greetingLabel, 1)
-        
-        nextButton = QPushButton("→")
-        maxIndex = card.getGreetingCount() - 1
-        nextButton.setEnabled(self.currentGreetingIndex < maxIndex)
-        nextButton.clicked.connect(lambda: self._navigateGreeting(1))
-        navLayout.addWidget(nextButton)
-        
-        # Greeting counter
-        if card.getGreetingCount() > 1:
-            counterLabel = QLabel(f"{self.currentGreetingIndex + 1} / {card.getGreetingCount()}")
-            counterLabel.setStyleSheet("color: #888; font-size: 10px;")
-            navLayout.addWidget(counterLabel)
-        
         navWidget = QWidget()
         navWidget.setLayout(navLayout)
-        self.contentLayout.addWidget(navWidget)
-    
+
+        cardsCount = card.getGreetingCount()
+
+        # PREV
+        self.greetingNavPrev = QPushButton("  ◁◁  ")
+        self.greetingNavPrev.setEnabled(self.currentGreetingIndex > 0)
+        self.greetingNavPrev.clicked.connect(lambda: self._navigateGreeting(-1))
+        navLayout.addWidget(self.greetingNavPrev)
+
+        # COUNTER
+        navLayout.addStretch()
+        self.greetingCounterLabel = QLabel(f"{self.currentGreetingIndex + 1} / {cardsCount}")
+        self.greetingCounterLabel.setStyleSheet("color: #888; font-size: 14px;")
+        self.greetingCounterLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        navLayout.addWidget(self.greetingCounterLabel)
+        navLayout.addStretch()
+
+        # NEXT
+        self.greetingNavNext = QPushButton("  ▷▷  ")
+        self.greetingNavNext.setEnabled(self.currentGreetingIndex < cardsCount - 1)
+        self.greetingNavNext.clicked.connect(lambda: self._navigateGreeting(1))
+        navLayout.addWidget(self.greetingNavNext)
+        
+        # Greetings content
+        greetingsLayout = QVBoxLayout()
+        greetingsWidget = QWidget()
+        greetingsWidget.setLayout(greetingsLayout)
+        greetingsLayout.addWidget(navWidget)
+
+        # GREETING CONTAINER
+        self.greetingLabel = QLabel(card.getCurrentGreeting(self.currentGreetingIndex))
+        self.greetingLabel.setWordWrap(True)
+        self.greetingLabel.setStyleSheet("padding: 5px;")
+        self.greetingLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        greetingsLayout.addWidget(self.greetingLabel, 1)
+
+        # Greetings Section
+        self.greetingsSection = CollapsibleWidget("Greetings", greetingsWidget)
+        self.contentLayout.addWidget(self.greetingsSection)
+
     def _navigateGreeting(self, direction: int):
         """
         Navigate between greetings.
@@ -226,5 +285,10 @@ class DataPanel(QWidget):
         
         if 0 <= newIndex <= maxIndex:
             self.currentGreetingIndex = newIndex
-            self._updateContent()
+
+            self.greetingNavPrev.setEnabled(self.currentGreetingIndex > 0)
+            self.greetingNavNext.setEnabled(self.currentGreetingIndex < maxIndex)
+
+            self.greetingLabel.setText(self.currentCard.getCurrentGreeting(self.currentGreetingIndex))
+            self.greetingCounterLabel.setText(f"{self.currentGreetingIndex + 1} / {self.currentCard.getGreetingCount()}")
 

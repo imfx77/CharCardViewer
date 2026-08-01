@@ -13,9 +13,10 @@ from app.gui.main_window import MainWindow
 
 def main():
     """Main application entry point."""
-    app = QApplication(sys.argv)
+    app = QApplication(sys.argv + ['-platform', 'windows:darkmode=2'])
+    app.setStyle('Fusion')
     app.setApplicationName("Character Card Viewer")
-    
+
     window = MainWindow()
     window.show()
     

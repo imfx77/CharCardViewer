@@ -16,7 +16,7 @@ from app.utils.image_utils import getThumbnailCache
 class ThumbnailItem(QWidget):
     """Individual thumbnail item in the grid."""
     
-    clicked = Signal(str)  # Emits file path when clicked
+    selected = Signal(str)  # Emits file path when selected
     
     def __init__(self, filePath: str, card: Optional[CharacterCard], size: int, parent=None):
         """
@@ -47,7 +47,8 @@ class ThumbnailItem(QWidget):
         self.thumbnailButton = QPushButton()
         self.thumbnailButton.setFixedSize(self.size, self.size)
         self.thumbnailButton.setIconSize(QSize(self.size - 10, self.size - 10))
-        self.thumbnailButton.clicked.connect(lambda: self.clicked.emit(self.filePath))
+        self.thumbnailButton.clicked.connect(lambda: self.selected.emit(self.filePath))
+        self.thumbnailButton.setToolTip(self.filePath)
         self.thumbnailButton.setStyleSheet("""
             QPushButton {
                 border: 2px solid #ccc;
@@ -61,17 +62,18 @@ class ThumbnailItem(QWidget):
         
         # Name label
         name = self.card.name if self.card else Path(self.filePath).stem
+
         self.nameLabel = QLabel(name)
         self.nameLabel.setAlignment(Qt.AlignCenter)
         self.nameLabel.setWordWrap(True)
         self.nameLabel.setMaximumWidth(self.size)
-        
+
         layout.addWidget(self.thumbnailButton)
         layout.addWidget(self.nameLabel)
-        
+
         self.setLayout(layout)
         self.setFixedWidth(self.size + 10)
-    
+
     def _loadThumbnail(self):
         """Load thumbnail image."""
         thumbnailImagePath = getThumbnailCache(self.filePath, [self.size - 10, self.size - 10])
@@ -115,7 +117,7 @@ class ThumbnailItem(QWidget):
 class ThumbnailGrid(QWidget):
     """Scrollable grid of character card thumbnails."""
     
-    thumbnailClicked = Signal(str)  # Emits file path when thumbnail is clicked
+    thumbnailSelected = Signal(str)  # Emits file path when thumbnail is clicked
     refreshStarted = Signal()  # Emitted when grid refresh starts
     refreshFinished = Signal()  # Emitted when grid refresh completes
     
@@ -260,7 +262,7 @@ class ThumbnailGrid(QWidget):
             rowIndex = (i - self._buildIndexCorrector) // self._buildColumns
             
             item = ThumbnailItem(card.filePath, card, self.thumbnailSize, self.gridWidget)
-            item.clicked.connect(self._onThumbnailClicked)
+            item.selected.connect(self._onThumbnailSelected)
             self.gridLayout.addWidget(item, rowIndex, col)
             self.thumbnailItems.append(item)
         
@@ -275,13 +277,14 @@ class ThumbnailGrid(QWidget):
             self._isBuilding = False
             self.refreshFinished.emit()
     
-    def _onThumbnailClicked(self, filePath: str):
+    def _onThumbnailSelected(self, filePath: str):
         """
         Handle thumbnail click.
         
         Args:
             filePath: Path to clicked file
         """
+
         # Deselect previous
         if self.selectedItem:
             self.selectedItem.setSelected(False)
@@ -293,7 +296,7 @@ class ThumbnailGrid(QWidget):
                 self.selectedItem = item
                 break
         
-        self.thumbnailClicked.emit(filePath)
+        self.thumbnailSelected.emit(filePath)
     
     def resizeEvent(self, event):
         """Handle resize event to adjust grid columns."""
