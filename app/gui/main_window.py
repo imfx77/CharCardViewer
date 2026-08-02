@@ -182,19 +182,27 @@ class MainWindow(QMainWindow):
         filters = QToolBar()
         self.addToolBar(filters)
 
-        filters.addWidget(QLabel("  Tag :  "))
-        self.filterTagsInput = QLineEdit()
-        self.filterTagsInput.setText(self.settings.getFilterTags())
-        self.filterTagsInput.textChanged.connect(self._onFiltersChanged)
-        filters.addWidget(self.filterTagsInput)
-        filters.addSeparator()
-        filters.addSeparator()
-
         filters.addWidget(QLabel("  Name :  "))
         self.filterNameInput = QLineEdit()
         self.filterNameInput.setText(self.settings.getFilterName())
         self.filterNameInput.textChanged.connect(self._onFiltersChanged)
         filters.addWidget(self.filterNameInput)
+        filters.addSeparator()
+        filters.addSeparator()
+
+        filters.addWidget(QLabel("  Creator :  "))
+        self.filterCreatorInput = QLineEdit()
+        self.filterCreatorInput.setText(self.settings.getFilterCreator())
+        self.filterCreatorInput.textChanged.connect(self._onFiltersChanged)
+        filters.addWidget(self.filterCreatorInput)
+        filters.addSeparator()
+        filters.addSeparator()
+
+        filters.addWidget(QLabel("  Tags :  "))
+        self.filterTagsInput = QLineEdit()
+        self.filterTagsInput.setText(self.settings.getFilterTags())
+        self.filterTagsInput.textChanged.connect(self._onFiltersChanged)
+        filters.addWidget(self.filterTagsInput)
         filters.addSeparator()
         filters.addSeparator()
 
@@ -247,12 +255,13 @@ class MainWindow(QMainWindow):
 
     def _onFiltersChanged(self):
         """Handle filters change - update filtering."""
-        filterTags = self.filterTagsInput.text()
         filterName = self.filterNameInput.text()
+        filterCreator = self.filterCreatorInput.text()
+        filterTags = self.filterTagsInput.text()
         filterDescr = self.filterDescrInput.text()
-        self.settings.setFilters(filterTags, filterName, filterDescr)
-        self.thumbnailGrid.filterCards(filterTags, filterName, filterDescr, True)
-        self.statusBar.showMessage(f"Filters changed to Tag=[{filterTags}] and Name=[{filterName}] and Descripton=[{filterDescr}]")
+        self.settings.setFilters(filterName, filterCreator, filterTags, filterDescr)
+        self.thumbnailGrid.filterCards(filterName, filterCreator, filterTags, filterDescr, True)
+        self.statusBar.showMessage(f"Filters changed to Name=[{filterName}] and Creator=[{filterCreator}] and Tags=[{filterTags}] and Description=[{filterDescr}]")
 
     def _onSelectFolder(self):
         """Select folder containing character cards."""
@@ -316,8 +325,9 @@ class MainWindow(QMainWindow):
         # Grid will emit refreshStarted/refreshFinished signals
         self.thumbnailGrid.setCards(self.cards)
         self.thumbnailGrid.sortCards(self.sortByNameCheckbox.isChecked())
-        self.thumbnailGrid.filterCards(self.filterTagsInput.text(),
-                                       self.filterNameInput.text(),
+        self.thumbnailGrid.filterCards(self.filterNameInput.text(),
+                                       self.filterCreatorInput.text(),
+                                       self.filterTagsInput.text(),
                                        self.filterDescrInput.text(),
                                        True)
         self.statusBar.showMessage(f"Loaded {len(self.cards)} character cards")

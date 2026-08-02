@@ -59,13 +59,13 @@ You can have large thumbnails:
 - **Sorted Display**  
   _Cards are automatically sorted by character name or by file canonical path depending on `Sort by Name` checkbox_
 - **Filtered Display**  
-  _Cards can be filtered by **Tags**, **Name** and **Description**, and multiple search substrings are allowed separated by the `|` symbol (for Tags and Description ONLY), allowing filtering by multiple tags and co-existing phrases in the descriptions of the cards_
+  _Cards can be filtered by **Name**, **Creator**, **Tags** and **Description**, and multiple search substrings are allowed separated by the `|` symbol (for Tags and Description ONLY), allowing filtering by multiple tags and co-existing phrases in the descriptions of the cards_
 - **Thumbnail Size Control**  
   _Adjustable thumbnail size with persistent settings, changing the size regenerates thumbnails caches_
 - **Thumbnails Caching**  
   _Automatically caches and updates thumbnail files for faster loading (look for the `.thumbs_cache` subfolder in the main app folder, it can be manually cleared on demand)_
 - **Character Information Display**  
-  _View detailed character data including file path, name and tags; collapsable sections for description, personality, scenario, and multiple greetings_
+  _View detailed character data including file path, name and tags; collapsable sections for card info, description, personality, scenario, multiple greetings, message examples, creator notes_
 - **Alternative Greetings Navigation**  
   _Navigate through multiple greeting messages with arrow controls_
 - **Selecting and Copying Texts**  
@@ -111,7 +111,7 @@ Download `CharCardViewer.exe` from [Releases](https://github.com/imfx77/CharCard
    - Choose a directory containing PNG character card files (also, all the subfolders can be scanned recursively if needed)
 
 3. **Filter and Sort**
-   - Use Tags/Name/Description filters to reduce the cards count for easier browsing
+   - Use Name/Creator/Tags/Description filters to reduce the cards count for easier browsing
    - Choose to sort the cards by name or by canonical file path depending on which is more useful 
 
 4. **Browse character cards**:

@@ -200,17 +200,18 @@ class ThumbnailGrid(QWidget):
             self._cancelBuild()
             self._refreshGrid()
 
-    def filterCards(self, filterTags: str, filterName: str, filterDescr: str, forceRefresh=False):
+    def filterCards(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str, forceRefresh: bool = False):
         """
         Filter character cards to display.
 
         Args:
-            filterTags: tags filter
             filterName: name filter
+            filterCreator: creator filter
+            filterTags: tags filter
             filterDescr: description filter
         """
         for c in self.cards:
-            c.evaluateFilters(filterTags, filterName, filterDescr)
+            c.evaluateFilters(filterName, filterCreator, filterTags, filterDescr)
         if forceRefresh:
             self._cancelBuild()
             self._refreshGrid()

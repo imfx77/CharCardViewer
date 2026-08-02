@@ -126,8 +126,12 @@ class CharacterCard:
         """Get total number of greetings (first_mes + alternate_greetings)."""
         return 1 + len(self.alternate_greetings)
 
-    def evaluateFilters(self,filterTags: str, filterName: str, filterDescr: str):
+    def evaluateFilters(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str):
         if filterName and (filterName.lower().strip() not in self.name.lower()):
+            self.isFiltered = True
+            return
+
+        if filterCreator and (filterCreator.lower().strip() not in self.creator.lower()):
             self.isFiltered = True
             return
 

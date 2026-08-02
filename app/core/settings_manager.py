@@ -39,8 +39,9 @@ class SettingsManager:
             "thumbnailSize": 150,
             "scanSubfolders": False,
             "sortByName": False,
-            "filterTags": "",
             "filterName": "",
+            "filterCreator": "",
+            "filterTags": "",
             "filterDescr": ""
         }
 
@@ -94,29 +95,35 @@ class SettingsManager:
         self.settings["sortByName"] = sort
         self._saveSettings()
 
-    def getFilterTags(self) -> str:
-        """Get filter tag preference."""
-        return self.settings.get("filterTags", "")
-
     def getFilterName(self) -> str:
         """Get filter name preference."""
         return self.settings.get("filterName", "")
+
+    def getFilterCreator(self) -> str:
+        """Get filter name preference."""
+        return self.settings.get("filterCreator", "")
+
+    def getFilterTags(self) -> str:
+        """Get filter tag preference."""
+        return self.settings.get("filterTags", "")
 
     def getFilterDescr(self) -> str:
         """Get filter description preference."""
         return self.settings.get("filterDescr", "")
 
-    def setFilters(self, filterTags: str, filterName: str, filterDescr: str):
+    def setFilters(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str):
         """
         Set filters preference.
 
         Args:
-            filterTags: tags filter
             filterName: name filter
+            filterCreator: creator filter
+            filterTags: tags filter
             filterDescr: description filter
         """
-        self.settings["filterTags"] = filterTags
         self.settings["filterName"] = filterName
+        self.settings["filterCreator"] = filterCreator
+        self.settings["filterTags"] = filterTags
         self.settings["filterDescr"] = filterDescr
         self._saveSettings()
 
