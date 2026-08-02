@@ -8,13 +8,22 @@ from typing import Optional, List, Dict, Any
 class CharacterCard:
     """Character card data structure."""
     
+    spec: str
+    spec_version: str
+    character_version: str
+    avatar: str
+    creator: str
+    creator_notes: str
+
+    tags: List[str]
     name: str
     description: str
     personality: str
     scenario: str
-    firstMes: str
-    alternateGreetings: List[str]
-    tags: List[str]
+    first_mes: str
+    alternate_greetings: List[str]
+    mes_example: str
+
     filePath: str
     isFiltered : bool
     
@@ -46,30 +55,47 @@ class CharacterCard:
                     value = data.get(fieldName, default)
                 return value if value is not None else default
             
+            spec = getField("spec", "")
+            spec_version = getField("spec_version", "")
+            character_version = getField("character_version", "")
+            avatar = getField("avatar", "")
+            creator = getField("creator", "")
+            creator_notes = getField("creator_notes", "")
+
+            tags = getField("tags", [])
             name = getField("name", "Unknown")
             description = getField("description", "")
             personality = getField("personality", "")
             scenario = getField("scenario", "")
-            firstMes = getField("first_mes", "")
-            alternateGreetings = getField("alternate_greetings", [])
-            tags = getField("tags", [])
-            
-            # Ensure alternateGreetings is a list
-            if not isinstance(alternateGreetings, list):
-                alternateGreetings = []
-            
+            first_mes = getField("first_mes", "")
+            alternate_greetings = getField("alternate_greetings", [])
+            mes_example = getField("mes_example", "")
+
             # Ensure tags is a list
             if not isinstance(tags, list):
                 tags = []
-            
+
+            # Ensure alternateGreetings is a list
+            if not isinstance(alternate_greetings, list):
+                alternate_greetings = []
+
             return cls(
+                spec=spec if spec else "",
+                spec_version=spec_version if spec_version else "",
+                character_version=character_version if character_version else "",
+                avatar=avatar if avatar else "",
+                creator=creator if creator else "",
+                creator_notes=creator_notes if creator_notes else "",
+
+                tags=tags,
                 name=name if name else "Unknown",
                 description=description if description else "",
                 personality=personality if personality else "",
                 scenario=scenario if scenario else "",
-                firstMes=firstMes if firstMes else "",
-                alternateGreetings=alternateGreetings,
-                tags=tags,
+                first_mes=first_mes if first_mes else "",
+                alternate_greetings=alternate_greetings,
+                mes_example=mes_example if mes_example else "",
+
                 filePath=filePath,
                 isFiltered=False
             )
@@ -88,17 +114,17 @@ class CharacterCard:
             Greeting message string
         """
         if index == 0:
-            return self.firstMes
+            return self.first_mes
         
         altIndex = index - 1
-        if 0 <= altIndex < len(self.alternateGreetings):
-            return self.alternateGreetings[altIndex]
+        if 0 <= altIndex < len(self.alternate_greetings):
+            return self.alternate_greetings[altIndex]
         
-        return self.firstMes
+        return self.first_mes
     
     def getGreetingCount(self) -> int:
         """Get total number of greetings (first_mes + alternate_greetings)."""
-        return 1 + len(self.alternateGreetings)
+        return 1 + len(self.alternate_greetings)
 
     def evaluateFilters(self,filterTags: str, filterName: str, filterDescr: str):
         if filterName and (filterName.lower().strip() not in self.name.lower()):

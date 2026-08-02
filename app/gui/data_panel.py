@@ -158,10 +158,13 @@ class DataPanel(QWidget):
         if card.tags:
             self._addTagsSection(card.tags)
         
+        # Card Info
+        self._addCardInfo(card)
+        
         # Description
         if card.description:
             self._addSection("Description", card.description)
-        
+
         # Personality
         if card.personality:
             self._addSection("Personality", card.personality)
@@ -171,16 +174,42 @@ class DataPanel(QWidget):
             self._addSection("Scenario", card.scenario)
         
         # First message with navigation
-        if card.firstMes or card.alternateGreetings:
+        if card.first_mes or card.alternate_greetings:
             self._addGreetingSection(card)
         
+        # Message example
+        if card.mes_example:
+            self._addSection("Message Example", card.mes_example)
+
+        # Creator notes
+        if card.creator_notes:
+            self._addSection("Creator Notes", card.creator_notes)
+
         # Add spacer
         self.contentLayout.addStretch()
     
+    def _addCardInfo(self, card: CharacterCard):
+        """
+        Add a section with card info.
+        """
+        info: str = ""
+
+        if card.spec and card.spec_version:
+            info += "Spec: " + card.spec + "  [ " + card.spec_version + " ]\n"
+        if card.creator:
+            info += "Creator: " + card.creator + "\n"
+        if card.character_version:
+            info += "Character: " + card.character_version + "\n"
+        if card.avatar:
+            info += "Avatar: " + card.avatar
+
+        if info:
+            self._addSection("Card Info", info)
+
     def _addSection(self, title: str, content: str):
         """
         Add a section with title and content.
-        
+
         Args:
             title: Section title
             content: Section content
