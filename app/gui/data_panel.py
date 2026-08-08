@@ -4,8 +4,8 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton
 )
-from PySide6.QtCore import Qt, QPropertyAnimation
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QFont, QImage, QPixmap
 
 from app.models.character_card import CharacterCard
 from app.gui.flow_layout import FlowLayout
@@ -19,6 +19,7 @@ class CollapsibleWidget(QWidget):
         titleFont.setBold(True)
 
         self.title = QPushButton("△  " + title + "  △")
+        self.title.setToolTip("Collapse Section")
         self.title.setCheckable(True)
         self.title.setChecked(True)
         self.title.setFont(titleFont)
@@ -35,6 +36,7 @@ class CollapsibleWidget(QWidget):
         MAX_SIZE = 16777215
         predicted_height = self.height() - self.content.height()
         self.title.setText(self.title.text().replace('▼', '△') if checked else self.title.text().replace('△', '▼'))
+        self.title.setToolTip("Collapse Section" if checked else "Expand Section")
         self.content.setMaximumHeight(MAX_SIZE if checked else 0)
         self.setMaximumHeight(MAX_SIZE if checked else predicted_height)
 
@@ -158,9 +160,12 @@ class DataPanel(QWidget):
         if card.tags:
             self._addTagsSection(card.tags)
         
+        # Preview
+        self._addPreview(card)
+
         # Card Info
         self._addCardInfo(card)
-        
+
         # Description
         if card.description:
             self._addSection("Description", card.description)
@@ -188,6 +193,23 @@ class DataPanel(QWidget):
         # Add spacer
         self.contentLayout.addStretch()
     
+    def _addPreview(self, card: CharacterCard):
+        """
+        Add a section with card preview.
+        """
+
+        image = QImage(card.filePath)
+        pixmap = QPixmap.fromImage(image)
+        label = QLabel()
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        section = CollapsibleWidget("Preview", label)
+        self.contentLayout.addWidget(section)
+
+        scaledWidth = 0.95 * self.headerWidget.size().width()
+        scaledHeight = scaledWidth * pixmap.height() / pixmap.width()
+        QTimer.singleShot(5, lambda: label.setPixmap(pixmap.scaled(QSize(scaledWidth, scaledHeight), Qt.KeepAspectRatio, Qt.SmoothTransformation)))
+        QTimer.singleShot(10, lambda: section.title.click())
+
     def _addCardInfo(self, card: CharacterCard):
         """
         Add a section with card info.
