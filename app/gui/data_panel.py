@@ -44,7 +44,6 @@ class ScrollableTextWidget(ScrollableWidget):
 
         content_widget = QLabel(content)
         content_widget.setWordWrap(True)
-        content_widget.setStyleSheet("padding: 5px;")
         content_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         content_widget.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
 
@@ -486,10 +485,8 @@ class DataPanel(QWidget):
         # GREETING CONTAINER
         self.greetingBrowser = RemoteImageBrowser()
         self.greetingBrowser.setOpenExternalLinks(True)
-        self.greetingBrowser.setStyleSheet("padding: 5px;")
         self.greetingBrowser.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         self.greetingBrowser.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-        self.greetingBrowser.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.greetingBrowser.setMarkdown(card.getCurrentGreeting(self.currentGreetingIndex))
         greetingsLayout.addWidget(ScrollableWidget(self.greetingBrowser))
 
