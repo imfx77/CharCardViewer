@@ -456,7 +456,7 @@ class DataPanel(QWidget):
         navWidget = QWidget()
         navWidget.setLayout(navLayout)
 
-        cardsCount = card.getGreetingCount()
+        greetingsCount = card.getGreetingsCount()
 
         # PREV
         self.greetingNavPrev = QPushButton("  ◁◁  ")
@@ -466,7 +466,7 @@ class DataPanel(QWidget):
 
         # COUNTER
         navLayout.addStretch()
-        self.greetingCounterLabel = QLabel(f"{self.currentGreetingIndex + 1} / {cardsCount}")
+        self.greetingCounterLabel = QLabel(f"{self.currentGreetingIndex + 1} / {greetingsCount}")
         self.greetingCounterLabel.setStyleSheet("color: #888; font-size: 14px;")
         self.greetingCounterLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         navLayout.addWidget(self.greetingCounterLabel)
@@ -474,7 +474,7 @@ class DataPanel(QWidget):
 
         # NEXT
         self.greetingNavNext = QPushButton("  ▷▷  ")
-        self.greetingNavNext.setEnabled(self.currentGreetingIndex < cardsCount - 1)
+        self.greetingNavNext.setEnabled(self.currentGreetingIndex < greetingsCount - 1)
         self.greetingNavNext.clicked.connect(lambda: self._navigateGreeting(1))
         navLayout.addWidget(self.greetingNavNext)
         
@@ -494,7 +494,7 @@ class DataPanel(QWidget):
         self.greetingBrowser.setMarkdown(card.getCurrentGreeting(self.currentGreetingIndex))
         greetingsLayout.addWidget(ScrollableWidget(self.greetingBrowser))
 
-        self.tabsWidget.addTab(greetingsWidget, "Greetings")
+        self.tabsWidget.addTab(greetingsWidget, f"Greetings ({greetingsCount})")
 
     def _navigateGreeting(self, direction: int):
         """
@@ -505,9 +505,10 @@ class DataPanel(QWidget):
         """
         if self.currentCard is None:
             return
-        
+
+        greetingsCount = self.currentCard.getGreetingsCount()
         newIndex = self.currentGreetingIndex + direction
-        maxIndex = self.currentCard.getGreetingCount() - 1
+        maxIndex = greetingsCount - 1
         
         if 0 <= newIndex <= maxIndex:
             self.currentGreetingIndex = newIndex
@@ -515,6 +516,6 @@ class DataPanel(QWidget):
             self.greetingNavPrev.setEnabled(self.currentGreetingIndex > 0)
             self.greetingNavNext.setEnabled(self.currentGreetingIndex < maxIndex)
 
-            self.greetingCounterLabel.setText(f"{self.currentGreetingIndex + 1} / {self.currentCard.getGreetingCount()}")
+            self.greetingCounterLabel.setText(f"{self.currentGreetingIndex + 1} / {greetingsCount}")
             self.greetingBrowser.setMarkdown(self.currentCard.getCurrentGreeting(self.currentGreetingIndex))
 

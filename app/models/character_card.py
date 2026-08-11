@@ -122,7 +122,7 @@ class CharacterCard:
         
         return self.first_mes
     
-    def getGreetingCount(self) -> int:
+    def getGreetingsCount(self) -> int:
         """Get total number of greetings (first_mes + alternate_greetings)."""
         return 1 + len(self.alternate_greetings)
 
