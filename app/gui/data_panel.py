@@ -4,54 +4,94 @@ from typing import Optional
 
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton, QTextBrowser
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton, QTextBrowser, QTabWidget, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl, QSize
 from PySide6.QtGui import QFont, QImage, QPixmap, QTextOption, QTextDocument, QPainter, QFontMetrics
 
 from app.models.character_card import CharacterCard
 from app.gui.flow_layout import FlowLayout
 
 
-class CollapsibleWidget(QWidget):
-    def __init__(self, title, content_widget):
+class ScrollableWidget(QWidget):
+    def __init__(self, content_widget):
         super().__init__()
 
-        titleFont = QFont()
-        titleFont.setPointSize(12)
-        titleFont.setBold(True)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
 
-        self.title = QPushButton("△  " + title + "  △")
-        self.title.setToolTip("Collapse Section")
-        self.title.setCheckable(True)
-        self.title.setChecked(True)
-        self.title.setFont(titleFont)
+        # Content widget
+        self.content = QWidget()
+        self.layout = QVBoxLayout()
+        self.layout.setSpacing(15)
+        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.content.setLayout(self.layout)
 
-        self.content = content_widget
+        # Scroll area for content
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setWidget(self.content)
 
-        self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.title)
-        self.layout.addWidget(self.content)
+        self.layout.addWidget(content_widget, stretch=1)
+        self.layout.addStretch()
 
-        self.title.toggled.connect(self.toggle)
+        layout.addWidget(self.scroll)
+        self.setLayout(layout)
 
-    def toggle(self, checked):
-        MAX_SIZE = 16777215
-        predicted_height = self.height() - self.content.height()
-        self.title.setText(self.title.text().replace('▼', '△') if checked else self.title.text().replace('△', '▼'))
-        self.title.setToolTip("Collapse Section" if checked else "Expand Section")
-        self.content.setMaximumHeight(MAX_SIZE if checked else 0)
-        self.setMaximumHeight(MAX_SIZE if checked else predicted_height)
-
-class CollapsibleTextWidget(CollapsibleWidget):
-    def __init__(self, title, content):
+class ScrollableTextWidget(ScrollableWidget):
+    def __init__(self, content):
 
         content_widget = QLabel(content)
         content_widget.setWordWrap(True)
         content_widget.setStyleSheet("padding: 5px;")
+        content_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         content_widget.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
 
-        super().__init__(title, content_widget)
+        super().__init__(content_widget)
+
+
+class WidthScaledLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap = None
+
+        # Allow shrinking and expanding
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def setPixmap(self, pixmap):
+        self._pixmap = pixmap
+        super().setPixmap(pixmap)
+        self.update_scaled()
+
+    def heightForWidth(self, w):
+        """Tell Qt the height depends on the width."""
+        if not self._pixmap:
+            return super().heightForWidth(w)
+        ratio = self._pixmap.height() / self._pixmap.width()
+        return int(w * ratio)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def minimumSizeHint(self):
+        """Remove the image-based minimum size."""
+        return QSize(1, 1)
+
+    def resizeEvent(self, event):
+        self.update_scaled()
+        super().resizeEvent(event)
+
+    def update_scaled(self):
+        if not self._pixmap:
+            return
+
+        w = self.width()
+        scaled = self._pixmap.scaledToWidth(
+            w,
+            Qt.SmoothTransformation
+        )
+        super().setPixmap(scaled)
 
 
 class RemoteImageBrowser(QTextBrowser):
@@ -65,6 +105,8 @@ class RemoteImageBrowser(QTextBrowser):
         super().__init__()
         self.manager = QNetworkAccessManager()
         self.manager.finished.connect(self._replyFinished)
+
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         # Instance-level pending replies
         self.pending_replies = {}
@@ -119,8 +161,6 @@ class RemoteImageBrowser(QTextBrowser):
         doc.addResource(QTextDocument.ImageResource, QUrl(url), img)
         doc.markContentsDirty(0, doc.characterCount())
         self.setHtml("<style>img { max-width: 100%; height: auto; }</style>" + self.toHtml())  # forces full re-layout
-
-        QTimer.singleShot(10, lambda: self.setMinimumHeight(40 + self.document().size().height()))
 
     def _handleImageFailure(self, url):
 
@@ -233,21 +273,11 @@ class DataPanel(QWidget):
         self.headerLayout.setContentsMargins(10, 10, 10, 10)
         self.headerWidget.setLayout(self.headerLayout)
 
-        # Content widget
-        self.contentWidget = QWidget()
-        self.contentLayout = QVBoxLayout()
-        self.contentLayout.setSpacing(15)
-        self.contentLayout.setContentsMargins(10, 10, 10, 10)
-        self.contentWidget.setLayout(self.contentLayout)
-
-        # Scroll area for content
-        self.scrollArea = QScrollArea()
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scrollArea.setWidget(self.contentWidget)
+        # Tabs widget
+        self.tabsWidget = QTabWidget()
 
         layout.addWidget(self.headerWidget)
-        layout.addWidget(self.scrollArea)
+        layout.addWidget(self.tabsWidget)
 
         self.setLayout(layout)
         self._showEmptyState()
@@ -255,24 +285,21 @@ class DataPanel(QWidget):
     def _showEmptyState(self):
         """Show empty state when no card is selected."""
         self._clearContent()
-        
+
         label = QLabel("Select a character card to view details")
         label.setAlignment(Qt.AlignCenter)
         label.setStyleSheet("color: #888; font-size: 24px;")
-        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-        self.contentLayout.addWidget(label)
-    
+        self.headerLayout.addWidget(label)
+
     def _clearContent(self):
         """Clear all title widgets."""
         while self.headerLayout.count():
             child = self.headerLayout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        """Clear all content widgets."""
-        while self.contentLayout.count():
-            child = self.contentLayout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        """Clear all tabs widgets."""
+        while self.tabsWidget.count() > 0:
+            self.tabsWidget.removeTab(0)
 
     def setCard(self, card: Optional[CharacterCard]):
         """
@@ -283,9 +310,9 @@ class DataPanel(QWidget):
         """
         self.currentCard = card
         self.currentGreetingIndex = 0
-        self.updateContent()
+        self._updateContent()
     
-    def updateContent(self):
+    def _updateContent(self):
         """Update the displayed content."""
         self._clearContent()
         
@@ -314,7 +341,7 @@ class DataPanel(QWidget):
         # Tags (if any) (header)
         if card.tags:
             self._addTagsSection(card.tags)
-        
+
         # Preview
         self._addPreview(card)
 
@@ -339,34 +366,23 @@ class DataPanel(QWidget):
         
         # Message example
         if card.mes_example:
-            self._addSection("Message Example", card.mes_example)
+            self._addSection("MsgExample", card.mes_example)
 
         # Creator notes
         if card.creator_notes:
-            self._addSection("Creator Notes", card.creator_notes)
+            self._addSection("Notes", card.creator_notes)
 
-        # Add spacer
-        self.contentLayout.addStretch()
-    
     def _addPreview(self, card: CharacterCard):
         """
         Add a section with card preview.
         """
 
-        scaledWidth = 0.95 * self.headerWidget.size().width()
-
         image = QImage(card.filePath)
-        image = image.scaledToWidth(scaledWidth, Qt.SmoothTransformation)
         pixmap = QPixmap.fromImage(image)
 
-        self.preview = QLabel()
-        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview = WidthScaledLabel()
         self.preview.setPixmap(pixmap)
-        section = CollapsibleWidget("Preview", self.preview)
-        section.setMaximumWidth(scaledWidth)
-        self.contentLayout.addWidget(section)
-
-        QTimer.singleShot(10, lambda: section.title.click())
+        self.tabsWidget.addTab(ScrollableWidget(self.preview), "Preview")
 
     def _addCardInfo(self, card: CharacterCard):
         """
@@ -384,7 +400,7 @@ class DataPanel(QWidget):
             info += "Avatar: " + card.avatar
 
         if info:
-            self._addSection("Card Info", info)
+            self._addSection("Info", info)
 
     def _addSection(self, title: str, content: str):
         """
@@ -394,9 +410,8 @@ class DataPanel(QWidget):
             title: Section title
             content: Section content
         """
-        section = CollapsibleTextWidget(title, content)
-        section.setMaximumWidth(0.95 * self.headerWidget.size().width())
-        self.contentLayout.addWidget(section)
+
+        self.tabsWidget.addTab(ScrollableTextWidget(content), title)
 
     def _addTagsSection(self, tags: list):
         """
@@ -477,13 +492,9 @@ class DataPanel(QWidget):
         self.greetingBrowser.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         self.greetingBrowser.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.greetingBrowser.setMarkdown(card.getCurrentGreeting(self.currentGreetingIndex))
-        QTimer.singleShot(10, lambda: self.greetingBrowser.setMinimumHeight(40 + self.greetingBrowser.document().size().height()))
-        greetingsLayout.addWidget(self.greetingBrowser)
+        greetingsLayout.addWidget(ScrollableWidget(self.greetingBrowser))
 
-        # Greetings Section
-        self.greetingsSection = CollapsibleWidget("Greetings", greetingsWidget)
-        self.greetingsSection.setMaximumWidth(0.95 * self.headerWidget.size().width())
-        self.contentLayout.addWidget(self.greetingsSection)
+        self.tabsWidget.addTab(greetingsWidget, "Greetings")
 
     def _navigateGreeting(self, direction: int):
         """
@@ -506,5 +517,4 @@ class DataPanel(QWidget):
 
             self.greetingCounterLabel.setText(f"{self.currentGreetingIndex + 1} / {self.currentCard.getGreetingCount()}")
             self.greetingBrowser.setMarkdown(self.currentCard.getCurrentGreeting(self.currentGreetingIndex))
-            QTimer.singleShot(10, lambda: self.greetingBrowser.setMinimumHeight(40 + self.greetingBrowser.document().size().height()))
 
