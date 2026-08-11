@@ -114,13 +114,15 @@ class CharacterCard:
             Greeting message string
         """
         if index == 0:
-            return self.first_mes
-        
-        altIndex = index - 1
-        if 0 <= altIndex < len(self.alternate_greetings):
-            return self.alternate_greetings[altIndex]
-        
-        return self.first_mes
+            markdawn = self.first_mes
+        else:
+            altIndex = index - 1
+            if 0 <= altIndex < len(self.alternate_greetings):
+                markdawn = self.alternate_greetings[altIndex]
+            else:
+                markdawn = self.first_mes
+
+        return markdawn.replace("] (http", "](http")
     
     def getGreetingsCount(self) -> int:
         """Get total number of greetings (first_mes + alternate_greetings)."""

@@ -467,7 +467,6 @@ class DataPanel(QWidget):
         # COUNTER
         navLayout.addStretch()
         self.greetingCounterLabel = QLabel(f"{self.currentGreetingIndex + 1} / {greetingsCount}")
-        self.greetingCounterLabel.setStyleSheet("color: #888; font-size: 14px;")
         self.greetingCounterLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         navLayout.addWidget(self.greetingCounterLabel)
         navLayout.addStretch()
