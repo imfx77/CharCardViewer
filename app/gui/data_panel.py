@@ -45,7 +45,8 @@ class ScrollableTextWidget(ScrollableWidget):
         content_widget = QLabel(content)
         content_widget.setWordWrap(True)
         content_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        content_widget.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        content_widget.setOpenExternalLinks(True)
+        content_widget.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
 
         super().__init__(content_widget)
 
@@ -220,6 +221,7 @@ class RemoteImageBrowser(QTextBrowser):
         # Replace broken <img src="..."> with text
         for url in RemoteImageBrowser.global_broken_urls:
             html = html.replace(f'<br /><span style=" color:#ffff00;">[Image Loading ... ⏳ {url}]</span><br />', f'')
+            html = html.replace(f'<br /><span style=" color:#ff0000;">[Image Failed: ❌ {url}]</span><br />', f'')
             html = html.replace(f'<img src="{url.replace(" ", "%20")}"', f'global_broken_url : {url}')
             html = html.replace(f'<img src="{url}"', f'global_broken_url : {url}')
             html = html.replace(
@@ -229,12 +231,13 @@ class RemoteImageBrowser(QTextBrowser):
         # Replace cached <img src="..."> with text
         for url in RemoteImageBrowser.global_cache:
             html = html.replace(f'<br /><span style=" color:#ffff00;">[Image Loading ... ⏳ {url}]</span><br />', f'')
+            html = html.replace(f'<br />[<a href="{url}"><span style=" text-decoration: underline; color:#9b9a99;">{url}</span></a>]<br />', f'')
             if url not in RemoteImageBrowser.global_broken_urls:
                 html = html.replace(f'<img src="{url.replace(" ", "%20")}"', f'global_cached_url : {url}')
                 html = html.replace(f'<img src="{url}"', f'global_cached_url : {url}')
                 html = html.replace(
                     f'global_cached_url : {url}',
-                    f'<br><span>[{url}]</span><br><img src="{url}"'
+                    f'<br>[<a href="{url}"><span style=" text-decoration: underline; color:#9b9a99;">{url}</span></a>]<br><img src="{url}"'
                 )
         super().setHtml(html)
 
@@ -339,7 +342,7 @@ class DataPanel(QWidget):
 
         # Tags (if any) (header)
         if card.tags:
-            self._addTagsSection(card.tags)
+            self._addTags(card.tags)
 
         # Preview
         self._addPreview(card)
@@ -361,7 +364,7 @@ class DataPanel(QWidget):
         
         # First message with navigation
         if card.first_mes or card.alternate_greetings:
-            self._addGreetingSection(card)
+            self._addGreetings(card)
         
         # Message example
         if card.mes_example:
@@ -369,7 +372,7 @@ class DataPanel(QWidget):
 
         # Creator notes
         if card.creator_notes:
-            self._addSection("Notes", card.creator_notes)
+            self._addNotes(card)
 
     def _addPreview(self, card: CharacterCard):
         """
@@ -401,6 +404,25 @@ class DataPanel(QWidget):
         if info:
             self._addSection("Info", info)
 
+    def _addNotes(self, card: CharacterCard):
+        """
+        Add a section with card creator notes.
+        """
+
+        self.notesBrowser = RemoteImageBrowser()
+        self.notesBrowser.setWordWrapMode(QTextOption.WrapMode.WordWrap)
+        self.notesBrowser.setStyleSheet("padding: 10px;")
+        self.notesBrowser.setOpenExternalLinks(True)
+        self.notesBrowser.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+
+        from app.utils.html_markdown_utils import is_html
+        if is_html(card.creator_notes):
+            self.notesBrowser.setHtml(card.creator_notes)
+        else:
+            self.notesBrowser.setMarkdown(card.creator_notes)
+
+        self.tabsWidget.addTab(self.notesBrowser, f"Notes")
+
     def _addSection(self, title: str, content: str):
         """
         Add a section with title and content.
@@ -412,7 +434,7 @@ class DataPanel(QWidget):
 
         self.tabsWidget.addTab(ScrollableTextWidget(content), title)
 
-    def _addTagsSection(self, tags: list):
+    def _addTags(self, tags: list):
         """
         Add tags section with styled tag badges.
         
@@ -442,7 +464,7 @@ class DataPanel(QWidget):
         tagsContainer.setLayout(tagsLayout)
         self.headerLayout.addWidget(tagsContainer)
     
-    def _addGreetingSection(self, card: CharacterCard):
+    def _addGreetings(self, card: CharacterCard):
         """
         Add greeting section with navigation arrows.
         
@@ -484,9 +506,9 @@ class DataPanel(QWidget):
 
         # GREETING CONTAINER
         self.greetingBrowser = RemoteImageBrowser()
-        self.greetingBrowser.setOpenExternalLinks(True)
         self.greetingBrowser.setWordWrapMode(QTextOption.WrapMode.WordWrap)
-        self.greetingBrowser.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        self.greetingBrowser.setOpenExternalLinks(True)
+        self.greetingBrowser.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         self.greetingBrowser.setMarkdown(card.getCurrentGreeting(self.currentGreetingIndex))
         greetingsLayout.addWidget(ScrollableWidget(self.greetingBrowser))
 
