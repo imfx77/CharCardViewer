@@ -188,14 +188,39 @@ class ThumbnailGrid(QWidget):
         """
         self.cards = cards
 
-    def sortCards(self, sortByName : bool, forceRefresh=False):
+    def sortCards(self, sortByCreator : bool, sortByName : bool, forceRefresh=False):
         """
         Sort the character cards.
 
         Args:
+            sortByCreator: bool flag
             sortByName: bool flag
         """
-        self.cards = sorted(self.cards, key=lambda c: c.name if sortByName else (c.filePath.count(os.sep), c.filePath.replace('-', '').casefold()))
+
+        def sortKeyByCreatorAndName(card: CharacterCard):
+            return card.creator.strip().casefold(), card.name.strip().casefold()
+
+        def sortKeyByCreator(card: CharacterCard):
+            return card.creator.strip().casefold(), card.filePath.count(os.sep), card.filePath.replace('-', '').casefold()
+
+        def sortKeyByName(card: CharacterCard):
+            return card.name.strip().casefold()
+
+        def sortKeyByPath(card: CharacterCard):
+            return card.filePath.count(os.sep), card.filePath.replace('-', '').casefold()
+
+        if sortByCreator:
+            if sortByName:
+                sortKey = sortKeyByCreatorAndName
+            else:
+                sortKey = sortKeyByCreator
+        else:
+            if sortByName:
+                sortKey = sortKeyByName
+            else:
+                sortKey = sortKeyByPath
+
+        self.cards = sorted(self.cards, key=sortKey)
         if forceRefresh:
             self._cancelBuild()
             self._refreshGrid()

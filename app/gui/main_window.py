@@ -133,14 +133,22 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.selectFolderButton)
         toolbar.addSeparator()
         toolbar.addSeparator()
-        toolbar.addSeparator()
-        toolbar.addSeparator()
 
-        # Sort by Name checkbox
+        # Scan Subfolders checkbox
         self.scanSubfoldersCheckbox = QCheckBox(" Scan Subfolders  ")
         self.scanSubfoldersCheckbox.clicked.connect(self._onScanSubfolders)
         self.scanSubfoldersCheckbox.setChecked(self.settings.getScanSubfolders())
         toolbar.addWidget(self.scanSubfoldersCheckbox)
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+
+        # Sort by Creator checkbox
+        self.sortByCreatorCheckbox = QCheckBox(" Sort by Creator  ")
+        self.sortByCreatorCheckbox.clicked.connect(self._onSortByCreator)
+        self.sortByCreatorCheckbox.setChecked(self.settings.getSortByCreator())
+        toolbar.addWidget(self.sortByCreatorCheckbox)
 
         # Sort by Name checkbox
         self.sortByNameCheckbox = QCheckBox(" Sort by Name  ")
@@ -246,12 +254,21 @@ class MainWindow(QMainWindow):
         self.statusBar.showMessage("Extracting EXIF data...")
         self._extractAndLoadCards(self.currentDirectory, value)
 
+    def _onSortByCreator(self):
+        """Handle SortByCreator checkbox click - update sorting."""
+        sortCreator = self.sortByCreatorCheckbox.isChecked()
+        sortName = self.sortByNameCheckbox.isChecked()
+        self.settings.setSortByCreator(sortCreator)
+        self.thumbnailGrid.sortCards(sortCreator, sortName, True)
+        self.statusBar.showMessage(f"Sort By Creator set to {sortCreator}")
+
     def _onSortByName(self):
         """Handle SortByName checkbox click - update sorting."""
-        value = self.sortByNameCheckbox.isChecked()
-        self.settings.setSortByName(value)
-        self.thumbnailGrid.sortCards(value, True)
-        self.statusBar.showMessage(f"Sort By Name set to {value}")
+        sortCreator = self.sortByCreatorCheckbox.isChecked()
+        sortName = self.sortByNameCheckbox.isChecked()
+        self.settings.setSortByName(sortName)
+        self.thumbnailGrid.sortCards(sortCreator, sortName, True)
+        self.statusBar.showMessage(f"Sort By Name set to {sortName}")
 
     def _onFiltersChanged(self):
         """Handle filters change - update filtering."""
@@ -324,7 +341,8 @@ class MainWindow(QMainWindow):
 
         # Grid will emit refreshStarted/refreshFinished signals
         self.thumbnailGrid.setCards(self.cards)
-        self.thumbnailGrid.sortCards(self.sortByNameCheckbox.isChecked())
+        self.thumbnailGrid.sortCards(self.sortByCreatorCheckbox.isChecked(),
+                                     self.sortByNameCheckbox.isChecked())
         self.thumbnailGrid.filterCards(self.filterNameInput.text(),
                                        self.filterCreatorInput.text(),
                                        self.filterTagsInput.text(),

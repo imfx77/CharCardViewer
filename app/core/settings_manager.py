@@ -38,6 +38,7 @@ class SettingsManager:
             "splitterPosition": [900, 300],  # Left, Right
             "thumbnailSize": 150,
             "scanSubfolders": False,
+            "sortByCreator": False,
             "sortByName": False,
             "filterName": "",
             "filterCreator": "",
@@ -71,14 +72,28 @@ class SettingsManager:
         """Get scan subfolders preference."""
         return self.settings.get("scanSubfolders", False)
 
-    def setScanSubfolders(self, sort: bool):
+    def setScanSubfolders(self, recursive: bool):
         """
         Set scan subfolders preference.
 
         Args:
+            recursive: bool flag
+        """
+        self.settings["scanSubfolders"] = recursive
+        self._saveSettings()
+
+    def getSortByCreator(self) -> bool:
+        """Get sort by creator preference."""
+        return self.settings.get("sortByCreator", False)
+
+    def setSortByCreator(self, sort: bool):
+        """
+        Set sort by creator preference.
+
+        Args:
             sort: bool flag
         """
-        self.settings["scanSubfolders"] = sort
+        self.settings["sortByCreator"] = sort
         self._saveSettings()
 
     def getSortByName(self) -> bool:

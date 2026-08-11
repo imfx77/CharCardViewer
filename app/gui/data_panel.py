@@ -419,7 +419,7 @@ class DataPanel(QWidget):
         if is_html(card.creator_notes):
             self.notesBrowser.setHtml(card.creator_notes)
         else:
-            self.notesBrowser.setMarkdown(card.creator_notes)
+            self.notesBrowser.setMarkdown(card.creator_notes.replace("] (http", "](http"))
 
         self.tabsWidget.addTab(self.notesBrowser, f"Notes")
 
