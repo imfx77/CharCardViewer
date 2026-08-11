@@ -1,11 +1,13 @@
 """Character data display panel."""
 
 from typing import Optional
+
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton, QTextBrowser
 )
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QFont, QImage, QPixmap
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QFont, QImage, QPixmap, QTextOption, QTextDocument, QPainter, QFontMetrics
 
 from app.models.character_card import CharacterCard
 from app.gui.flow_layout import FlowLayout
@@ -14,6 +16,7 @@ from app.gui.flow_layout import FlowLayout
 class CollapsibleWidget(QWidget):
     def __init__(self, title, content_widget):
         super().__init__()
+
         titleFont = QFont()
         titleFont.setPointSize(12)
         titleFont.setBold(True)
@@ -50,6 +53,158 @@ class CollapsibleTextWidget(CollapsibleWidget):
 
         super().__init__(title, content_widget)
 
+
+class RemoteImageBrowser(QTextBrowser):
+    # Global cache shared by all instances
+    global_cache = {}  # url → QImage
+    global_pending_urls = set()
+    global_canceled_urls = set() # url → currently canceled
+    global_broken_urls = set()  # url → failed permanently
+
+    def __init__(self):
+        super().__init__()
+        self.manager = QNetworkAccessManager()
+        self.manager.finished.connect(self._replyFinished)
+
+        # Instance-level pending replies
+        self.pending_replies = {}
+
+    def loadResource(self, type, name):
+        if type == QTextDocument.ImageResource:
+            url = name.toString()
+
+            if url.startswith("http"):
+
+                # If broken, return the broken placeholder
+                if url in RemoteImageBrowser.global_broken_urls:
+                    return RemoteImageBrowser.global_cache[url]
+
+                # If cached, return cached image
+                if url in RemoteImageBrowser.global_cache:
+                    return RemoteImageBrowser.global_cache[url]
+
+                # If already downloading, do nothing
+                if url in RemoteImageBrowser.global_pending_urls:
+                    return None
+
+                # Start new download
+                RemoteImageBrowser.global_canceled_urls.discard(url)
+                RemoteImageBrowser.global_pending_urls.add(url)
+                reply = self.manager.get(QNetworkRequest(QUrl(url)))
+                self.pending_replies[reply] = url
+                QTimer.singleShot(100, lambda: self.setHtml("<style>img { max-width: 100%; height: auto; }</style>" + self.toHtml()))  # forces full re-layout
+                return None
+
+        return super().loadResource(type, name)
+
+    def _replyFinished(self, reply):
+        url = self.pending_replies.pop(reply, None)
+        if url is None:
+            return
+
+        RemoteImageBrowser.global_pending_urls.discard(url)
+
+        data = reply.readAll()
+        img = QImage.fromData(data)
+        if img.isNull():
+            if url not in RemoteImageBrowser.global_canceled_urls:
+                self._handleImageFailure(url)
+            return
+
+        # Store globally
+        RemoteImageBrowser.global_cache[url] = img
+
+        # Insert into document
+        doc = self.document()
+        doc.addResource(QTextDocument.ImageResource, QUrl(url), img)
+        doc.markContentsDirty(0, doc.characterCount())
+        self.setHtml("<style>img { max-width: 100%; height: auto; }</style>" + self.toHtml())  # forces full re-layout
+
+        QTimer.singleShot(10, lambda: self.setMinimumHeight(40 + self.document().size().height()))
+
+    def _handleImageFailure(self, url):
+
+        # Create a small image with the URL written inside
+        font = QFont("Arial", 10)
+        metrics = QFontMetrics(font)
+        text_width = metrics.horizontalAdvance(url)
+        text_height = metrics.height()
+
+        w = text_width + 10
+        h = text_height + 10
+
+        img = QImage(w, h, QImage.Format_ARGB32)
+        img.fill(Qt.white)
+
+        painter = QPainter(img)
+        painter.setPen(Qt.red)
+        painter.setFont(font)
+        painter.drawText(5, text_height, url)
+        painter.end()
+
+        # Mark URL as broken
+        RemoteImageBrowser.global_broken_urls.add(url)
+
+        # Store placeholder in cache
+        RemoteImageBrowser.global_cache[url] = img
+
+        # Insert into document
+        doc = self.document()
+        doc.addResource(QTextDocument.ImageResource, QUrl(url), img)
+        doc.markContentsDirty(0, doc.characterCount())
+        self.setHtml("<style>img { max-width: 100%; height: auto; }</style>" + self.toHtml())  # forces full re-layout
+
+        QTimer.singleShot(10, lambda: self.setMinimumHeight(40 + self.document().size().height()))
+
+    def cancelPendingRequests(self):
+        # Abort all active network replies
+        for reply in list(self.pending_replies.keys()):
+            url = self.pending_replies.pop(reply, None)
+            RemoteImageBrowser.global_canceled_urls.add(url)
+            RemoteImageBrowser.global_pending_urls.discard(url)
+            reply.abort()
+            reply.deleteLater()
+
+        # Clear tracking structures
+        self.pending_replies.clear()
+
+    def setHtml(self, html):
+        # Replace pending <img src="..."> with text
+        for url in RemoteImageBrowser.global_pending_urls:
+            html = html.replace(f'<br /><span style=" color:#ffff00;">[Image Loading ... ⏳ {url}]</span><br />', f'')
+            html = html.replace(f'<img src="{url.replace(" ", "%20")}"', f'global_pending_url : {url}')
+            html = html.replace(f'<img src="{url}"', f'global_pending_url : {url}')
+            html = html.replace(
+                f'global_pending_url : {url}',
+                f'<br><span style="color:yellow;">[Image Loading ... ⏳ {url}]</span><br><img src="{url}"'
+            )
+        # Replace broken <img src="..."> with text
+        for url in RemoteImageBrowser.global_broken_urls:
+            html = html.replace(f'<br /><span style=" color:#ffff00;">[Image Loading ... ⏳ {url}]</span><br />', f'')
+            html = html.replace(f'<img src="{url.replace(" ", "%20")}"', f'global_broken_url : {url}')
+            html = html.replace(f'<img src="{url}"', f'global_broken_url : {url}')
+            html = html.replace(
+                f'global_broken_url : {url}',
+                f'<br><span style="color:red;">[Image Failed: ❌ {url}]</span><br><img src="{url}"'
+            )
+        # Replace cached <img src="..."> with text
+        for url in RemoteImageBrowser.global_cache:
+            html = html.replace(f'<br /><span style=" color:#ffff00;">[Image Loading ... ⏳ {url}]</span><br />', f'')
+            if url not in RemoteImageBrowser.global_broken_urls:
+                html = html.replace(f'<img src="{url.replace(" ", "%20")}"', f'global_cached_url : {url}')
+                html = html.replace(f'<img src="{url}"', f'global_cached_url : {url}')
+                html = html.replace(
+                    f'global_cached_url : {url}',
+                    f'<br><span>[{url}]</span><br><img src="{url}"'
+                )
+        super().setHtml(html)
+
+    def setMarkdown(self, markdown):
+        self.cancelPendingRequests()
+        super().setMarkdown(markdown)
+        self.setHtml("<style>img { max-width: 100%; height: auto; }</style>" + self.toHtml())  # forces full re-layout
+
+
 class DataPanel(QWidget):
     """Panel for displaying character card data."""
     
@@ -63,7 +218,7 @@ class DataPanel(QWidget):
         super().__init__(parent)
         self.currentCard: Optional[CharacterCard] = None
         self.currentGreetingIndex = 0
-        
+
         self._setupUi()
     
     def _setupUi(self):
@@ -128,9 +283,9 @@ class DataPanel(QWidget):
         """
         self.currentCard = card
         self.currentGreetingIndex = 0
-        self._updateContent()
+        self.updateContent()
     
-    def _updateContent(self):
+    def updateContent(self):
         """Update the displayed content."""
         self._clearContent()
         
@@ -198,16 +353,19 @@ class DataPanel(QWidget):
         Add a section with card preview.
         """
 
+        scaledWidth = 0.95 * self.headerWidget.size().width()
+
         image = QImage(card.filePath)
+        image = image.scaledToWidth(scaledWidth, Qt.SmoothTransformation)
         pixmap = QPixmap.fromImage(image)
-        label = QLabel()
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        section = CollapsibleWidget("Preview", label)
+
+        self.preview = QLabel()
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview.setPixmap(pixmap)
+        section = CollapsibleWidget("Preview", self.preview)
+        section.setMaximumWidth(scaledWidth)
         self.contentLayout.addWidget(section)
 
-        scaledWidth = 0.95 * self.headerWidget.size().width()
-        scaledHeight = scaledWidth * pixmap.height() / pixmap.width()
-        QTimer.singleShot(5, lambda: label.setPixmap(pixmap.scaled(QSize(scaledWidth, scaledHeight), Qt.KeepAspectRatio, Qt.SmoothTransformation)))
         QTimer.singleShot(10, lambda: section.title.click())
 
     def _addCardInfo(self, card: CharacterCard):
@@ -237,6 +395,7 @@ class DataPanel(QWidget):
             content: Section content
         """
         section = CollapsibleTextWidget(title, content)
+        section.setMaximumWidth(0.95 * self.headerWidget.size().width())
         self.contentLayout.addWidget(section)
 
     def _addTagsSection(self, tags: list):
@@ -311,14 +470,19 @@ class DataPanel(QWidget):
         greetingsLayout.addWidget(navWidget)
 
         # GREETING CONTAINER
-        self.greetingLabel = QLabel(card.getCurrentGreeting(self.currentGreetingIndex))
-        self.greetingLabel.setWordWrap(True)
-        self.greetingLabel.setStyleSheet("padding: 5px;")
-        self.greetingLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-        greetingsLayout.addWidget(self.greetingLabel, 1)
+        self.greetingBrowser = RemoteImageBrowser()
+        self.greetingBrowser.setOpenExternalLinks(True)
+        self.greetingBrowser.setStyleSheet("padding: 5px;")
+        self.greetingBrowser.setWordWrapMode(QTextOption.WrapMode.WordWrap)
+        self.greetingBrowser.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        self.greetingBrowser.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.greetingBrowser.setMarkdown(card.getCurrentGreeting(self.currentGreetingIndex))
+        QTimer.singleShot(10, lambda: self.greetingBrowser.setMinimumHeight(40 + self.greetingBrowser.document().size().height()))
+        greetingsLayout.addWidget(self.greetingBrowser)
 
         # Greetings Section
         self.greetingsSection = CollapsibleWidget("Greetings", greetingsWidget)
+        self.greetingsSection.setMaximumWidth(0.95 * self.headerWidget.size().width())
         self.contentLayout.addWidget(self.greetingsSection)
 
     def _navigateGreeting(self, direction: int):
@@ -340,6 +504,7 @@ class DataPanel(QWidget):
             self.greetingNavPrev.setEnabled(self.currentGreetingIndex > 0)
             self.greetingNavNext.setEnabled(self.currentGreetingIndex < maxIndex)
 
-            self.greetingLabel.setText(self.currentCard.getCurrentGreeting(self.currentGreetingIndex))
             self.greetingCounterLabel.setText(f"{self.currentGreetingIndex + 1} / {self.currentCard.getGreetingCount()}")
+            self.greetingBrowser.setMarkdown(self.currentCard.getCurrentGreeting(self.currentGreetingIndex))
+            QTimer.singleShot(10, lambda: self.greetingBrowser.setMinimumHeight(40 + self.greetingBrowser.document().size().height()))
 

@@ -370,7 +370,8 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, "loadingOverlay"):
             self.loadingOverlay.setGeometry(self.centralWidget().rect())
-    
+        self.dataPanel.updateContent()
+
     def closeEvent(self, event):
         """Handle window close event."""
         # Save window geometry
