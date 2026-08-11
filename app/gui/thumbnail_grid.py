@@ -48,7 +48,9 @@ class ThumbnailItem(QWidget):
         self.thumbnailButton.setFixedSize(self.size, self.size)
         self.thumbnailButton.setIconSize(QSize(self.size - 10, self.size - 10))
         self.thumbnailButton.clicked.connect(lambda: self.selected.emit(self.filePath))
-        self.thumbnailButton.setToolTip(self.filePath)
+        self.thumbnailButton.setToolTip(self.filePath
+                                        + '\nCreator: ' + (self.card.creator if self.card.creator else '(none)')
+                                        + '\nGreetings: ' + str(self.card.getGreetingsCount()))
         self.thumbnailButton.setStyleSheet("""
             QPushButton {
                 border: 2px solid #ccc;
