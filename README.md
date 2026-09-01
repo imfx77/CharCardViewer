@@ -1,6 +1,14 @@
 <h1 align="center">Character Card Viewer</h1>
 
 <p align="center">
+    <a href="https://github.com/imfx77/CharCardViewer/releases">
+        <img src="https://img.shields.io/github/v/release/imfx77/CharCardViewer?style=for-the-badge&color=brightgreen" alt="GitHub Latest Release (by date)" title="GitHub Latest Release (by date)">
+    </a>
+    <a href="https://github.com/imfx77/CharCardViewer/blob/master/LICENSE" title="Read License">
+        <img src="https://img.shields.io/github/license/imfx77/CharCardViewer?style=for-the-badge" alt="CharCardViewer">
+    </a>
+</p>
+<p align="center">
     <a href="https://github.com/imfx77/CharCardViewer/stargazers" title="View Stargazers">
         <img src="https://img.shields.io/github/stars/imfx77/CharCardViewer?logo=github&style=for-the-badge&color=orange" alt="CharCardViewer">
     </a>
@@ -32,13 +40,22 @@
 -------
 \
 A Python desktop application for viewing character cards stored as PNG files with embedded EXIF metadata.
-Character card information is typically stored as Base64-encoded JSON in PNG EXIF data, which makes it difficult to browse and view.
-This application provides a user-friendly interface to view thumbnails and character information.  
+Character card information is typically stored as Base64-encoded JSON in PNG EXIF data, which makes it difficult to browse and view.  
+
+This application provides a user-friendly interface to view collections of character cards by thumbnails and easily explore their character information.  
+
+<img src="https://img.shields.io/badge/⭐-If%20Useful-BC4E99?style=for-the-badge" alt="Star Badge">
 
 \
-![Preview](/images/main.png)
+Browsing and selecting cards to view their metadata:
 
-You can have large thumbnails:
+![Preview0](/images/main0.png)
+
+Using the filters to narrow down the list of cards, previewing multiple greetings with embedded pictures, selecting part of the text to copy it:
+
+![Preview1](/images/main1.png)
+
+Showing very large thumbnails, reviewing card's  Tags & Info:
 
 ![Preview2](/images/main2.png)
 
@@ -48,28 +65,52 @@ You can have large thumbnails:
 
 ## Features
 
-- **Thumbnail Grid View**  
-  _Browse character cards in a scrollable grid with thumbnails_
-- **Resizable Interface**  
-  _Adjustable splitter between thumbnail grid and data panel_
-- **Auto Save Settings**  
-  _The entire window geometry (position, size, splitter) is being auto saved in the settings file, as well as all the options and filters - they are automatically restored when the app is started again_
-- **Folder Scanning**  
-  _When a folder is selected its contents can be scanned recursively depending on the checkbox `Scan Subfolders`_
-- **Sorted Display**  
-  _Cards are automatically sorted by character name or by file canonical path depending on `Sort by Name` checkbox_
-- **Filtered Display**  
-  _Cards can be filtered by **Name**, **Creator**, **Tags** and **Description**, and multiple search substrings are allowed separated by the `|` symbol (for Tags and Description ONLY), allowing filtering by multiple tags and co-existing phrases in the descriptions of the cards_
-- **Thumbnail Size Control**  
-  _Adjustable thumbnail size with persistent settings, changing the size regenerates thumbnails caches_
-- **Thumbnails Caching**  
-  _Automatically caches and updates thumbnail files for faster loading (look for the `.thumbs_cache` subfolder in the main app folder, it can be manually cleared on demand)_
-- **Character Information Display**  
-  _View detailed character data including file path, name and tags; collapsable sections for card info, description, personality, scenario, multiple greetings, message examples, creator notes_
-- **Alternative Greetings Navigation**  
-  _Navigate through multiple greeting messages with arrow controls_
-- **Selecting and Copying Texts**  
-  _All the text sections in the character data panel can be selected by mouse and keyboard for convenient copying of desired data_  
+---
+#### Thumbnail Grid View
+  - Browse character cards in a scrollable grid with thumbnails
+---
+#### Resizable Interface
+  - Adjustable splitter between thumbnail grid and data panel
+---
+#### Auto Save Settings
+  - The entire window geometry (position, size, splitter) is being auto saved in the settings file, as well as all the options and filters
+  - They are automatically restored when the app is started again
+---
+#### Folder Scanning
+  - When a folder is selected its contents can be scanned recursively depending on the checkbox `Scan Subfolders`
+---
+#### Filtered Display
+  - Cards can be filtered by **Name**, **Creator**, **Tags** and **Description**
+  - Multiple search substrings are allowed separated by the `|` symbol (for Tags and Description ONLY), thus allowing filtering by multiple tags and co-existing phrases in the descriptions of the cards
+---
+#### Sorted Display
+  - Cards are automatically sorted by character name or by file canonical path depending on `Sort by Name` checkbox
+  - When the `Sort by Creator` checkbox is used the cards are grouped and sorted by creator
+---
+#### Thumbnail Size Control
+  - Adjustable thumbnail size with persistent settings, changing the size regenerates thumbnails caches
+---
+#### Thumbnails Caching
+  - Automatically caches and updates thumbnail files for faster loading
+  - Look for the `.thumbs_cache` subfolder in the main app folder, it can be manually cleared on demand
+---
+#### Character Information Display
+  - View detailed character data including file path, card name and preview
+  - Tags and info are available in a combined tab
+  - Separate tabs are available for description, personality, scenario, multiple greetings, message examples, creator notes
+---
+#### Alternative Greetings Navigation
+  - Navigate through multiple greeting messages with arrow buttons in the Greetings tab
+  - When greetings have embedded pictures they are loaded asynchronously in the greetings preview and live links to them are provided
+---
+#### Selecting and Copying Texts
+  - All the text sections in the character data panel can be selected by mouse and keyboard for convenient copying of desired data  
+---
+#### Shortcuts and Customizations
+  - Tabs of the data panel can be easily switched by `Ctrl + Tab` and `Ctrl + Shift + Tab` forward and backward
+  - The picture in the Preview tab can be zoomed in/out and the texts in all the other tabs can increase/decrease font for convenience of reading by using the keyboard shortcuts `Ctrl + +` and `Ctrl + -` or `Ctrl + Mouse Wheel`
+  - The customized zoom and font sizes take scope until the app is closed   
+---
 
 ## Requirements
 
@@ -100,33 +141,37 @@ Download `CharCardViewer.exe` from [Releases](https://github.com/imfx77/CharCard
 
 ## Usage
 
+---
 1. **Start the application**:
    ```batch
    start.bat
    ```
    or activate venv and run with `python main.py`
-
+---
 2. **Select a folder**:
    - Click `Select Folder` button on the main toolbar
    - Choose a directory containing PNG character card files (also, all the subfolders can be scanned recursively if needed)
-
+---
 3. **Filter and Sort**
    - Use Name/Creator/Tags/Description filters to reduce the cards count for easier browsing
-   - Choose to sort the cards by name or by canonical file path depending on which is more useful 
-
+   - Choose to sort the cards by creator and/or by name depending on which is most useful for you 
+---
 4. **Browse character cards**:
    - Scroll the grid view and click on any thumbnail to view its character information
    - Use the thumbnail size slider in the main toolbar to adjust thumbnail size as desired
-
+---
 5. **Character Data Panel**:
-   - Scroll down to the sections of interest
-   - Collapse sections that you want to skip (to avoid scrolling huge descriptions or scenarios)
+   - Select the tabs to review different parts of the card's metadata
+   - Use mouse and keyboard to select and copy any part of the texts 
    - Use arrow buttons in the greetings section to navigate through alternative greetings
-
+   - In greetings click the links to visit the original embedded images (if any)
+   - Use keyboard and mouse shortcuts to zoom in/out the preview ot increase/decrease font of texts
+---
 6. **Adjust the interface**:
    - Adjust the window size and position as necessary
    - Drag the splitter between thumbnails grid and data panel to resize them
    - All the settings are automatically saved
+---
 
 ## Character Card Format
 
@@ -134,8 +179,8 @@ The application supports character cards in the `chara_card_v2` and `chara_card_
 
 - **EXIF Tags**: `chara` (primary) or `Ccv3` (fallback)
 - **Data Format**: Base64-encoded JSON
-- **Required Fields**: name, description, personality, scenario, first_mes
-- **Optional Fields**: alternate_greetings (array of strings)
+- **Required Fields**: creator, tags, name, description, personality, scenario, first_mes
+- **Optional Fields**: alternate_greetings, mes_example, creator_notes
 
 ## Project Structure
 
@@ -159,32 +204,41 @@ CharCardView/
 │   ├── models/                           # Data models
 │   │   └── character_card.py             # Character card model
 │   └── utils/                            # Utilities
+│   │   ├── html_markdown_utils.py        # Detection of HTML and MD content
 │       └── image_utils.py                # Thumbnail generation and caching
 └── images/
     ├── icon.ico                          # Icon
     ├── icon.png                          # Icon
-    └── main.png                          # UI
+    └── main*.png                         # README images
 ```
-
-## Troubleshooting
-
-**No character cards displayed:**
-- Verify that PNG files contain valid EXIF data with `chara` or `Ccv3` tags
-- Check that PNG files are in the selected directory
-
-**Application won't start:**
-- Ensure Python 3.12+ is installed
-- Run `install.bat` to set up dependencies
-- Check that virtual environment was created successfully
-
-## License
-
-This project is provided as-is for personal use.
 
 ## Dependencies
 
 - **PySide6**: GUI framework
 - **Pillow**: Image processing and thumbnail generation
+
+## Troubleshooting
+
+#### Application won't start:
+- Ensure Python 3.12+ is installed
+- Run `install.bat` to set up dependencies
+- Check that virtual environment was created successfully
+
+#### No character cards displayed:
+- Verify that PNG files contain valid EXIF data with `chara` or `Ccv3` tags
+- Check that PNG files are in the selected directory
+
+
+## Credits
+
+This project was initially forked from the [CharCardView](https://github.com/Deaquay/CharCardView) app and I tried contributing to it for a while.
+Eventually, things grew much bigger, this repo was split, and its current code has nothing in common with the original.
+Yet, the following credit is mentioned out of courtesy:
+* [Deaquay Pekka](https://github.com/Deaquay) (c) 2025-2026
+   
+## License
+
+* This project is provided as-is for personal use and is distributed under the [MIT License](LICENSE "Read The MIT license")
 
 -------
 
@@ -194,6 +248,9 @@ This project is provided as-is for personal use.
     </a>
     <a href="https://github.com/imfx77/CharCardViewer/forks" title="See Forks">
         <img src="https://img.shields.io/github/forks/imfx77/CharCardViewer?logo=github&style=flat-square" alt="CharCardViewer">
+    </a>
+    <a href="https://github.com/imfx77/CharCardViewer/blob/master/LICENSE" title="Read License">
+        <img src="https://img.shields.io/github/license/imfx77/CharCardViewer?style=flat-square" alt="CharCardViewer">
     </a>
     <a href="https://github.com/imfx77/CharCardViewer/issues" title="Open Issues">
         <img src="https://img.shields.io/github/issues-raw/imfx77/CharCardViewer?style=flat-square" alt="CharCardViewer">
