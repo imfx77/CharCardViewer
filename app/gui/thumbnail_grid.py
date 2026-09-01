@@ -153,10 +153,10 @@ class ThumbnailGrid(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Scroll area
-        self.scrollArea = QScrollArea()
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Gris scroll area
+        self.gridScrollArea = QScrollArea()
+        self.gridScrollArea.setWidgetResizable(True)
+        self.gridScrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
         # Grid container
         self.gridWidget = QWidget()
@@ -165,8 +165,8 @@ class ThumbnailGrid(QWidget):
         self.gridLayout.setContentsMargins(10, 10, 10, 10)
         self.gridWidget.setLayout(self.gridLayout)
         
-        self.scrollArea.setWidget(self.gridWidget)
-        layout.addWidget(self.scrollArea)
+        self.gridScrollArea.setWidget(self.gridWidget)
+        layout.addWidget(self.gridScrollArea)
         
         self.setLayout(layout)
     

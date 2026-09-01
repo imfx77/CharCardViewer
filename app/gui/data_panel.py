@@ -4,10 +4,12 @@ from typing import Optional
 
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton, QTextBrowser, QTabWidget, QSizePolicy
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton, QTextBrowser, QTabWidget, QSizePolicy,
+    QApplication
 )
-from PySide6.QtCore import Qt, QTimer, QUrl, QSize
-from PySide6.QtGui import QFont, QImage, QPixmap, QTextOption, QTextDocument, QPainter, QFontMetrics
+from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QEvent, QObject
+from PySide6.QtGui import QFont, QImage, QPixmap, QTextOption, QTextDocument, QPainter, QFontMetrics, QTextCursor, \
+    QTextCharFormat
 
 from app.models.character_card import CharacterCard
 from app.gui.flow_layout import FlowLayout
@@ -30,10 +32,10 @@ class ScrollableWidget(QWidget):
         # Scroll area for content
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setWidget(self.content)
 
-        self.layout.addWidget(content_widget, stretch=1)
+        self.content_widget = content_widget
+        self.layout.addWidget(self.content_widget, stretch=1)
         self.layout.addStretch()
 
         layout.addWidget(self.scroll)
@@ -42,33 +44,32 @@ class ScrollableWidget(QWidget):
 class ScrollableTextWidget(ScrollableWidget):
     def __init__(self, content):
 
-        content_widget = QLabel(content)
-        content_widget.setWordWrap(True)
-        content_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        content_widget.setOpenExternalLinks(True)
-        content_widget.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        label = QLabel(content)
+        label.setWordWrap(True)
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        label.setOpenExternalLinks(True)
+        label.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
 
-        super().__init__(content_widget)
+        super().__init__(label)
 
 
 class WidthScaledLabel(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._pixmap = None
+        self.pixmap = None
 
         # Allow shrinking and expanding
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def setPixmap(self, pixmap):
-        self._pixmap = pixmap
-        super().setPixmap(pixmap)
-        self.update_scaled()
+        self.pixmap = pixmap
+        self._update_scaled()
 
     def heightForWidth(self, w):
         """Tell Qt the height depends on the width."""
-        if not self._pixmap:
+        if not self.pixmap:
             return super().heightForWidth(w)
-        ratio = self._pixmap.height() / self._pixmap.width()
+        ratio = self.pixmap.height() / self.pixmap.width()
         return int(w * ratio)
 
     def hasHeightForWidth(self):
@@ -79,15 +80,15 @@ class WidthScaledLabel(QLabel):
         return QSize(1, 1)
 
     def resizeEvent(self, event):
-        self.update_scaled()
+        self._update_scaled()
         super().resizeEvent(event)
 
-    def update_scaled(self):
-        if not self._pixmap:
+    def _update_scaled(self):
+        if not self.pixmap:
             return
 
         w = self.width()
-        scaled = self._pixmap.scaledToWidth(
+        scaled = self.pixmap.scaledToWidth(
             w,
             Qt.SmoothTransformation
         )
@@ -247,9 +248,123 @@ class RemoteImageBrowser(QTextBrowser):
         self.setHtml("<style>img { max-width: 100%; height: auto; }</style>" + self.toHtml())  # forces full re-layout
 
 
+class MouseWheelFilter(QObject):
+    def __init__(self, controller):
+        super().__init__()
+        self.controller = controller
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Wheel:
+            modifiers = QApplication.keyboardModifiers()
+
+            if modifiers & Qt.ControlModifier:
+                if event.angleDelta().y() > 0:
+                    self.controller.onZoomIn()
+                else:
+                    self.controller.onZoomOut()
+
+        return False
+
+
+class ZoomController:
+    zoom_factor_text = 1.0  # 100%
+    zoom_factor_preview = 1.0  # 100%
+
+    def __init__(self):
+        self.registered_widgets = []
+        self.initial_sizes = {}
+
+    def clear(self):
+        self.registered_widgets.clear()
+        self.initial_sizes.clear()
+
+    def register_widget(self, widget):
+        """Store widget and its initial font size."""
+        self.registered_widgets.append(widget)
+
+        if isinstance(widget, RemoteImageBrowser):
+            doc = widget.document()
+            font = doc.defaultFont()
+            self.initial_sizes[widget] = font.pointSizeF()
+
+        elif isinstance(widget, ScrollableTextWidget):
+            font = widget.content_widget.font()
+            self.initial_sizes[widget] = font.pointSizeF()
+
+
+    def apply_zoom(self, text_only: bool = False):
+        """Apply zoom factor to all registered text widgets."""
+        for widget in self.registered_widgets:
+
+            if isinstance(widget, RemoteImageBrowser):
+                initial_size = self.initial_sizes[widget]
+                new_size = initial_size * self.zoom_factor_text
+
+                doc = widget.document()
+                cursor = QTextCursor(doc)
+
+                fmt = QTextCharFormat()
+                fmt.setFontPointSize(new_size)
+
+                cursor.select(QTextCursor.Document)
+                cursor.mergeCharFormat(fmt)
+
+                widget.update() # Force repaint
+
+            elif isinstance(widget, ScrollableTextWidget):
+                initial_size = self.initial_sizes[widget]
+                new_size = initial_size * self.zoom_factor_text
+
+                font = widget.content_widget.font()
+                font.setPointSizeF(new_size)
+                widget.content_widget.setFont(font)
+
+            elif not text_only and (widget, ScrollableWidget):
+                if self.zoom_factor_preview == 1.0:
+                    widget.scroll.setWidgetResizable(True)
+                    widget.content_widget.setPixmap(widget.content_widget.pixmap)
+                else:
+                    widget.scroll.setWidgetResizable(True)
+                    initial_size = widget.content_widget.size()
+                    new_size = initial_size * self.zoom_factor_preview
+
+                    widget.scroll.setWidgetResizable(False)
+                    widget.content.resize(new_size)
+                    widget.content.updateGeometry()
+
+    def zoom_in_text(self):
+        ZoomController.zoom_factor_text += 0.10   # +10%
+        self.apply_zoom(text_only=True)
+
+    def zoom_out_text(self):
+        ZoomController.zoom_factor_text -= 0.10   # -10%
+        ZoomController.zoom_factor_text = max(0.50, ZoomController.zoom_factor_text) # limit the zoom out
+        self.apply_zoom(text_only=True)
+
+    def zoom_in_preview(self):
+        ZoomController.zoom_factor_preview += 0.10   # +10%
+        self.apply_zoom()
+
+    def zoom_out_preview(self):
+        ZoomController.zoom_factor_preview -= 0.10   # -10%
+        ZoomController.zoom_factor_preview = max(0.10, ZoomController.zoom_factor_preview) # limit the zoom out
+        self.apply_zoom()
+
+
 class DataPanel(QWidget):
     """Panel for displaying character card data."""
-    
+    last_tab_code = 0
+    tab_codes = {
+        "Preview" : 0,
+        "Tags && Info" : 1,
+        "Description" : 2,
+        "Personality" : 3,
+        "Scenario" : 4,
+        "Greetings" : 5,
+        "MsgExample" : 6,
+        "Notes" : 7,
+    }
+
     def __init__(self, parent=None):
         """
         Initialize data panel.
@@ -260,6 +375,10 @@ class DataPanel(QWidget):
         super().__init__(parent)
         self.currentCard: Optional[CharacterCard] = None
         self.currentGreetingIndex = 0
+        self.selected_tab_code = 0
+
+        self.wheel_filter = MouseWheelFilter(self)
+        self.zoomController = ZoomController()
 
         self._setupUi()
     
@@ -277,6 +396,7 @@ class DataPanel(QWidget):
 
         # Tabs widget
         self.tabsWidget = QTabWidget()
+        self.tabsWidget.currentChanged.connect(self.onTabChanged)
 
         layout.addWidget(self.headerWidget)
         layout.addWidget(self.tabsWidget)
@@ -299,9 +419,13 @@ class DataPanel(QWidget):
             child = self.headerLayout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
+
         """Clear all tabs widgets."""
         while self.tabsWidget.count() > 0:
             self.tabsWidget.removeTab(0)
+
+        """Clear text zoom controller."""
+        self.zoomController.clear()
 
     def setCard(self, card: Optional[CharacterCard]):
         """
@@ -315,6 +439,8 @@ class DataPanel(QWidget):
         self._updateContent()
     
     def _updateContent(self):
+        DataPanel.last_tab_code = self.selected_tab_code
+
         """Update the displayed content."""
         self._clearContent()
         
@@ -340,15 +466,11 @@ class DataPanel(QWidget):
         nameLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         self.headerLayout.addWidget(nameLabel)
 
-        # Tags (if any) (header)
-        if card.tags:
-            self._addTags(card.tags)
-
         # Preview
         self._addPreview(card)
 
-        # Card Info
-        self._addCardInfo(card)
+        # Tags & Info (if any)
+        self._addTagsAndInfo(card)
 
         # Description
         if card.description:
@@ -374,6 +496,23 @@ class DataPanel(QWidget):
         if card.creator_notes:
             self._addNotes(card)
 
+        # Apply current zoom
+        self.zoomController.apply_zoom()
+
+        # Attempt to keep the last tab selected
+        last_tab_name = None
+        for tab_name,tab_code in self.tab_codes.items():
+            if tab_code == self.last_tab_code:
+                last_tab_name = tab_name
+                break
+
+        if last_tab_name:
+            for tab_index in range(self.tabsWidget.count()):
+                tab_name = self.tabsWidget.tabText(tab_index)
+                if tab_name.startswith(last_tab_name):
+                    self.tabsWidget.setCurrentIndex(tab_index)
+                    break
+
     def _addPreview(self, card: CharacterCard):
         """
         Add a section with card preview.
@@ -384,25 +523,9 @@ class DataPanel(QWidget):
 
         self.preview = WidthScaledLabel()
         self.preview.setPixmap(pixmap)
-        self.tabsWidget.addTab(ScrollableWidget(self.preview), "Preview")
-
-    def _addCardInfo(self, card: CharacterCard):
-        """
-        Add a section with card info.
-        """
-        info: str = ""
-
-        if card.spec and card.spec_version:
-            info += "Spec: " + card.spec + "  [ " + card.spec_version + " ]\n"
-        if card.creator:
-            info += "Creator: " + card.creator + "\n"
-        if card.character_version:
-            info += "Character: " + card.character_version + "\n"
-        if card.avatar:
-            info += "Avatar: " + card.avatar
-
-        if info:
-            self._addSection("Info", info)
+        section_widget = ScrollableWidget(self.preview)
+        self.zoomController.register_widget(section_widget)
+        self.tabsWidget.addTab(section_widget, "Preview")
 
     def _addNotes(self, card: CharacterCard):
         """
@@ -415,13 +538,16 @@ class DataPanel(QWidget):
         self.notesBrowser.setOpenExternalLinks(True)
         self.notesBrowser.setTextInteractionFlags(Qt.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
 
+        self.notesBrowser.viewport().installEventFilter(self.wheel_filter)
+        self.zoomController.register_widget(self.notesBrowser)
+
         from app.utils.html_markdown_utils import is_html
         if is_html(card.creator_notes):
             self.notesBrowser.setHtml(card.creator_notes)
         else:
             self.notesBrowser.setMarkdown(card.creator_notes.replace("] (http", "](http"))
 
-        self.tabsWidget.addTab(self.notesBrowser, f"Notes")
+        self.tabsWidget.addTab(self.notesBrowser, "Notes")
 
     def _addSection(self, title: str, content: str):
         """
@@ -432,38 +558,60 @@ class DataPanel(QWidget):
             content: Section content
         """
 
-        self.tabsWidget.addTab(ScrollableTextWidget(content), title)
+        section_widget = ScrollableTextWidget(content)
+        self.zoomController.register_widget(section_widget)
+        self.tabsWidget.addTab(section_widget, title)
 
-    def _addTags(self, tags: list):
+    def _addTagsAndInfo(self, card: CharacterCard):
         """
-        Add tags section with styled tag badges.
-        
-        Args:
-            tags: List of tag strings
+        Add tags section with styled tag badges & info section as text.
         """
+
+        layout = QVBoxLayout()
+        container = QWidget()
+        container.setLayout(layout)
+
         # Create a container with flow layout for wrapping tags
-        tagsContainer = QWidget()
-        tagsLayout = FlowLayout(margin=0, hSpacing=6, vSpacing=6)
-        
-        for tag in tags:
-            if not tag:
-                continue
-            tagLabel = QLabel(str(tag))
-            tagLabel.setStyleSheet("""
-                QLabel {
-                    background-color: #3a6ea5;
-                    color: white;
-                    padding: 4px 10px;
-                    border-radius: 12px;
-                    font-size: 14px;
-                }
-            """)
-            tagLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-            tagsLayout.addWidget(tagLabel)
-        
-        tagsContainer.setLayout(tagsLayout)
-        self.headerLayout.addWidget(tagsContainer)
-    
+        if card.tags:
+            tagsContainer = QWidget()
+            tagsLayout = FlowLayout(margin=0, hSpacing=6, vSpacing=6)
+            tagsLayout.setSpacing(15)
+            tagsLayout.setContentsMargins(10, 10, 10, 10)
+
+            for tag in card.tags:
+                if not tag:
+                    continue
+                tagLabel = QLabel(str(tag))
+                tagLabel.setStyleSheet("""
+                    QLabel {
+                        background-color: #3a6ea5;
+                        color: white;
+                        padding: 4px 10px;
+                        border-radius: 12px;
+                    }
+                """)
+                tagLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+                tagsLayout.addWidget(tagLabel)
+
+            tagsContainer.setLayout(tagsLayout)
+            layout.addWidget(ScrollableWidget(tagsContainer), stretch=1)
+
+        # Compose the card info
+        info = "Creator: " + (card.creator if card.creator else "(none)") + "\n"
+        if card.spec and card.spec_version:
+            info += "Spec: " + card.spec + "  [ " + card.spec_version + " ]\n"
+        if card.character_version:
+            info += "Character: " + card.character_version + "\n"
+        if card.avatar:
+            info += "Avatar: " + card.avatar
+
+        infoContainer = ScrollableTextWidget(info)
+        self.zoomController.register_widget(infoContainer)
+        layout.addWidget(infoContainer, stretch=1)
+
+        # add Tags & Info tab
+        self.tabsWidget.addTab(container, "Tags && Info")
+
     def _addGreetings(self, card: CharacterCard):
         """
         Add greeting section with navigation arrows.
@@ -512,6 +660,9 @@ class DataPanel(QWidget):
         self.greetingBrowser.setMarkdown(card.getCurrentGreeting(self.currentGreetingIndex))
         greetingsLayout.addWidget(ScrollableWidget(self.greetingBrowser))
 
+        self.greetingBrowser.viewport().installEventFilter(self.wheel_filter)
+        self.zoomController.register_widget(self.greetingBrowser)
+
         self.tabsWidget.addTab(greetingsWidget, f"Greetings ({greetingsCount})")
 
     def _navigateGreeting(self, direction: int):
@@ -537,3 +688,46 @@ class DataPanel(QWidget):
             self.greetingCounterLabel.setText(f"{self.currentGreetingIndex + 1} / {greetingsCount}")
             self.greetingBrowser.setMarkdown(self.currentCard.getCurrentGreeting(self.currentGreetingIndex))
 
+            self.zoomController.apply_zoom(text_only=True)
+
+    def onNextTab(self):
+        if not self.tabsWidget:
+            return
+
+        current = self.tabsWidget.currentIndex()
+        count = self.tabsWidget.count()
+        self.tabsWidget.setCurrentIndex((current + 1) % count)
+
+    def onPreviousTab(self):
+        if not self.tabsWidget:
+            return
+
+        current = self.tabsWidget.currentIndex()
+        count = self.tabsWidget.count()
+        self.tabsWidget.setCurrentIndex((current - 1) % count)
+
+    def onZoomIn(self):
+        current = self.tabsWidget.currentIndex()
+        if current == 0:
+            self.zoomController.zoom_in_preview()
+        else:
+            self.zoomController.zoom_in_text()
+
+    def onZoomOut(self):
+        current = self.tabsWidget.currentIndex()
+        if current == 0:
+            self.zoomController.zoom_out_preview()
+        else:
+            self.zoomController.zoom_out_text()
+
+    def resizeEvent(self, event):
+        self.zoomController.apply_zoom()
+        super().resizeEvent(event)
+
+    def onTabChanged(self, index):
+        title = self.tabsWidget.tabText(index)
+        for tab_name,tab_code in self.tab_codes.items():
+            if title.startswith(tab_name):
+                self.selected_tab_code = tab_code
+                return
+        self.selected_tab_code = 0

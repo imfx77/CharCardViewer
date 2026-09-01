@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Optional
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QSplitter,
-    QFileDialog, QSlider, QLabel, QToolBar, QStatusBar, QPushButton, QCheckBox, QSizePolicy, QWidgetAction, QLineEdit
+    QFileDialog, QSlider, QLabel, QToolBar, QStatusBar, QPushButton, QCheckBox, QLineEdit
 )
-from PySide6.QtCore import Qt, QThread, Signal, QObject, QSize
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtCore import Qt, QThread, Signal, QObject
+from PySide6.QtGui import QIcon, QShortcut, QKeySequence
 
 from app.models.character_card import CharacterCard
 from app.core.custom_png_exif_extractor import CustomPngExifExtractor
@@ -107,7 +107,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.splitter)
         centralWidget.setLayout(layout)
         
-        # Toolbar
+        # Toolbars
         self._createToolbars()
         
         # Status bar
@@ -121,7 +121,10 @@ class MainWindow(QMainWindow):
         # Connect thumbnail grid signals
         self.thumbnailGrid.refreshStarted.connect(self._onRefreshStarted)
         self.thumbnailGrid.refreshFinished.connect(self._onRefreshFinished)
-    
+
+        # Global shortcuts
+        self._createGlobalShortcuts()
+
     def _createToolbars(self):
         """Create main toolbar."""
         toolbar = QToolBar()
@@ -219,6 +222,28 @@ class MainWindow(QMainWindow):
         self.filterDescrInput.setText(self.settings.getFilterDescr())
         self.filterDescrInput.textChanged.connect(self._onFiltersChanged)
         filters.addWidget(self.filterDescrInput)
+
+    def _createGlobalShortcuts(self):
+        """Create all global shortcuts."""
+
+        # Install wheel event filter
+        self.installEventFilter(self.dataPanel.wheel_filter)
+
+        # next tab
+        self.shortcut_next_tab = QShortcut(QKeySequence(Qt.CTRL | Qt.Key_Tab), self)
+        self.shortcut_next_tab.activated.connect(self.dataPanel.onNextTab)
+
+        # previous tab
+        self.shortcut_prev_tab = QShortcut(QKeySequence(Qt.CTRL | Qt.SHIFT | Qt.Key_Tab), self)
+        self.shortcut_prev_tab.activated.connect(self.dataPanel.onPreviousTab)
+
+        # zoom-in/increase font
+        self.shortcut_zoom_in = QShortcut(QKeySequence("Ctrl++"), self)
+        self.shortcut_zoom_in.activated.connect(self.dataPanel.onZoomIn)
+
+        # zoom-out/decrease font
+        self.shortcut_zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
+        self.shortcut_zoom_out.activated.connect(self.dataPanel.onZoomOut)
 
     def _loadWindowSettings(self):
         """Load window settings."""
