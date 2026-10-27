@@ -40,6 +40,7 @@ class SettingsManager:
             "scanSubfolders": False,
             "sortByCreator": False,
             "sortByName": False,
+            "withLorebook": False,
             "filterName": "",
             "filterCreator": "",
             "filterTags": "",
@@ -108,6 +109,20 @@ class SettingsManager:
             sort: bool flag
         """
         self.settings["sortByName"] = sort
+        self._saveSettings()
+
+    def getWithLorebook(self) -> bool:
+        """Get with lorebook preference."""
+        return self.settings.get("withLorebook", False)
+
+    def setWithLorebook(self, withLorebook: bool):
+        """
+        Set with lorebook preference.
+
+        Args:
+            withLorebook: bool flag
+        """
+        self.settings["withLorebook"] = withLorebook
         self._saveSettings()
 
     def getFilterName(self) -> str:

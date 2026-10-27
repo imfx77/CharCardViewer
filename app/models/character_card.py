@@ -24,6 +24,8 @@ class CharacterCard:
     alternate_greetings: List[str]
     mes_example: str
 
+    character_book: str
+
     filePath: str
     isFiltered : bool
     
@@ -70,6 +72,7 @@ class CharacterCard:
             first_mes = getField("first_mes", "")
             alternate_greetings = getField("alternate_greetings", [])
             mes_example = getField("mes_example", "")
+            character_book = getField("character_book", "")
 
             # Ensure tags is a list
             if not isinstance(tags, list):
@@ -95,6 +98,7 @@ class CharacterCard:
                 first_mes=first_mes if first_mes else "",
                 alternate_greetings=alternate_greetings,
                 mes_example=mes_example if mes_example else "",
+                character_book=character_book if character_book else "",
 
                 filePath=filePath,
                 isFiltered=False
@@ -128,7 +132,7 @@ class CharacterCard:
         """Get total number of greetings (first_mes + alternate_greetings)."""
         return 1 + len(self.alternate_greetings)
 
-    def evaluateFilters(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str):
+    def evaluateFilters(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str, withLorebook: bool):
         if filterName and (filterName.lower().strip() not in self.name.lower()):
             self.isFiltered = True
             return
@@ -150,6 +154,10 @@ class CharacterCard:
                 if all(tagFilter.lower().strip() not in tag.lower() for tag in self.tags):
                     self.isFiltered = True
                     return
+
+        if withLorebook and not self.character_book:
+            self.isFiltered = True
+            return
 
         self.isFiltered = False
 

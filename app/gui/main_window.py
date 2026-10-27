@@ -139,8 +139,8 @@ class MainWindow(QMainWindow):
 
         # Scan Subfolders checkbox
         self.scanSubfoldersCheckbox = QCheckBox(" Scan Subfolders  ")
-        self.scanSubfoldersCheckbox.clicked.connect(self._onScanSubfolders)
         self.scanSubfoldersCheckbox.setChecked(self.settings.getScanSubfolders())
+        self.scanSubfoldersCheckbox.clicked.connect(self._onScanSubfolders)
         toolbar.addWidget(self.scanSubfoldersCheckbox)
         toolbar.addSeparator()
         toolbar.addSeparator()
@@ -149,15 +149,25 @@ class MainWindow(QMainWindow):
 
         # Sort by Creator checkbox
         self.sortByCreatorCheckbox = QCheckBox(" Sort by Creator  ")
-        self.sortByCreatorCheckbox.clicked.connect(self._onSortByCreator)
         self.sortByCreatorCheckbox.setChecked(self.settings.getSortByCreator())
+        self.sortByCreatorCheckbox.clicked.connect(self._onSortByCreator)
         toolbar.addWidget(self.sortByCreatorCheckbox)
 
         # Sort by Name checkbox
         self.sortByNameCheckbox = QCheckBox(" Sort by Name  ")
-        self.sortByNameCheckbox.clicked.connect(self._onSortByName)
         self.sortByNameCheckbox.setChecked(self.settings.getSortByName())
+        self.sortByNameCheckbox.clicked.connect(self._onSortByName)
         toolbar.addWidget(self.sortByNameCheckbox)
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+        toolbar.addSeparator()
+
+        # With Lorebook checkbox
+        self.withLorebookCheckbox = QCheckBox(" With Lorebook  ")
+        self.withLorebookCheckbox.setChecked(self.settings.getWithLorebook())
+        self.withLorebookCheckbox.clicked.connect(self._onFiltersChanged)
+        toolbar.addWidget(self.withLorebookCheckbox)
         toolbar.addSeparator()
         toolbar.addSeparator()
         toolbar.addSeparator()
@@ -301,8 +311,10 @@ class MainWindow(QMainWindow):
         filterCreator = self.filterCreatorInput.text()
         filterTags = self.filterTagsInput.text()
         filterDescr = self.filterDescrInput.text()
+        withLorebook = self.withLorebookCheckbox.isChecked()
+        self.settings.setWithLorebook(withLorebook)
         self.settings.setFilters(filterName, filterCreator, filterTags, filterDescr)
-        self.thumbnailGrid.filterCards(filterName, filterCreator, filterTags, filterDescr, True)
+        self.thumbnailGrid.filterCards(filterName, filterCreator, filterTags, filterDescr, withLorebook, True)
         self.statusBar.showMessage(f"Filters changed to Name=[{filterName}] and Creator=[{filterCreator}] and Tags=[{filterTags}] and Description=[{filterDescr}]")
 
     def _onSelectFolder(self):
@@ -372,6 +384,7 @@ class MainWindow(QMainWindow):
                                        self.filterCreatorInput.text(),
                                        self.filterTagsInput.text(),
                                        self.filterDescrInput.text(),
+                                       self.withLorebookCheckbox.isChecked(),
                                        True)
         self.statusBar.showMessage(f"Loaded {len(self.cards)} character cards")
     

@@ -227,7 +227,7 @@ class ThumbnailGrid(QWidget):
             self._cancelBuild()
             self._refreshGrid()
 
-    def filterCards(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str, forceRefresh: bool = False):
+    def filterCards(self, filterName: str, filterCreator: str, filterTags: str, filterDescr: str, withLorebook: bool, forceRefresh: bool = False):
         """
         Filter character cards to display.
 
@@ -236,9 +236,10 @@ class ThumbnailGrid(QWidget):
             filterCreator: creator filter
             filterTags: tags filter
             filterDescr: description filter
+            withLorebook: with lorebook filter
         """
         for c in self.cards:
-            c.evaluateFilters(filterName, filterCreator, filterTags, filterDescr)
+            c.evaluateFilters(filterName, filterCreator, filterTags, filterDescr, withLorebook)
         if forceRefresh:
             self._cancelBuild()
             self._refreshGrid()

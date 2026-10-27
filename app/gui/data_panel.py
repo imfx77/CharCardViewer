@@ -5,11 +5,11 @@ from typing import Optional
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QPushButton, QTextBrowser, QTabWidget, QSizePolicy,
-    QApplication
+    QApplication, QTreeWidget, QTreeWidgetItem, QStyledItemDelegate
 )
 from PySide6.QtCore import Qt, QTimer, QUrl, QSize, QEvent, QObject
 from PySide6.QtGui import QFont, QImage, QPixmap, QTextOption, QTextDocument, QPainter, QFontMetrics, QTextCursor, \
-    QTextCharFormat
+    QTextCharFormat, QColor
 
 from app.models.character_card import CharacterCard
 from app.gui.flow_layout import FlowLayout
@@ -59,7 +59,7 @@ class WidthScaledLabel(QLabel):
         self.pixmap = None
 
         # Allow shrinking and expanding
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def setPixmap(self, pixmap):
         self.pixmap = pixmap
@@ -291,6 +291,10 @@ class ZoomController:
             font = widget.content_widget.font()
             self.initial_sizes[widget] = font.pointSizeF()
 
+        elif isinstance(widget, QTreeWidget):
+            font = widget.font()
+            self.initial_sizes[widget] = font.pointSizeF()
+
 
     def apply_zoom(self, text_only: bool = False):
         """Apply zoom factor to all registered text widgets."""
@@ -318,6 +322,17 @@ class ZoomController:
                 font = widget.content_widget.font()
                 font.setPointSizeF(new_size)
                 widget.content_widget.setFont(font)
+
+            elif isinstance(widget, QTreeWidget):
+                initial_size = self.initial_sizes[widget]
+                new_size = initial_size * self.zoom_factor_text
+
+                font = widget.font()
+                font.setPointSizeF(new_size)
+                widget.setFont(font)
+
+                widget.setItemDelegate(None)
+                widget.setItemDelegate(TreeItemWrapDelegate(widget))
 
             elif not text_only and (widget, ScrollableWidget):
                 if self.zoom_factor_preview == 1.0:
@@ -362,7 +377,8 @@ class DataPanel(QWidget):
         "Scenario" : 4,
         "Greetings" : 5,
         "MsgExample" : 6,
-        "Notes" : 7,
+        "Lorebook" : 7,
+        "Notes" : 8,
     }
 
     def __init__(self, parent=None):
@@ -381,12 +397,12 @@ class DataPanel(QWidget):
         self.zoomController = ZoomController()
 
         self._setupUi()
-    
+
     def _setupUi(self):
         """Set up the UI."""
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 10, 10, 10)
-        
+
         # Header widget
         self.headerWidget = QWidget()
         self.headerLayout = QVBoxLayout()
@@ -403,7 +419,7 @@ class DataPanel(QWidget):
 
         self.setLayout(layout)
         self._showEmptyState()
-    
+
     def _showEmptyState(self):
         """Show empty state when no card is selected."""
         self._clearContent()
@@ -437,19 +453,19 @@ class DataPanel(QWidget):
         self.currentCard = card
         self.currentGreetingIndex = 0
         self._updateContent()
-    
+
     def _updateContent(self):
         DataPanel.last_tab_code = self.selected_tab_code
 
         """Update the displayed content."""
         self._clearContent()
-        
+
         if self.currentCard is None:
             self._showEmptyState()
             return
-        
+
         card = self.currentCard
-        
+
         # File (header)
         fileLabel = QLabel(card.filePath)
         fileLabel.setWordWrap(True)
@@ -479,18 +495,22 @@ class DataPanel(QWidget):
         # Personality
         if card.personality:
             self._addSection("Personality", card.personality)
-        
+
         # Scenario
         if card.scenario:
             self._addSection("Scenario", card.scenario)
-        
+
         # First message with navigation
         if card.first_mes or card.alternate_greetings:
             self._addGreetings(card)
-        
+
         # Message example
         if card.mes_example:
             self._addSection("MsgExample", card.mes_example)
+
+        # Lorebook
+        if card.character_book:
+            self._addLorebook(card)
 
         # Creator notes
         if card.creator_notes:
@@ -548,6 +568,62 @@ class DataPanel(QWidget):
             self.notesBrowser.setMarkdown(card.creator_notes.replace("] (http", "](http"))
 
         self.tabsWidget.addTab(self.notesBrowser, "Notes")
+
+    def _addLorebook(self, card: CharacterCard):
+        """
+        Add a section with card lorebook.
+        """
+
+        entriesCount = len(card.character_book["entries"])
+
+        self.lorebookTree = QTreeWidget()
+        self.lorebookTree.setColumnCount(1)
+        self.lorebookTree.setWordWrap(True)
+        self.lorebookTree.setTextElideMode(Qt.TextElideMode.ElideNone)
+        self.lorebookTree.setUniformRowHeights(False)
+        self.lorebookTree.setHeaderLabel(card.character_book["name"] + " (" + str(entriesCount) + ")")
+        font = self.lorebookTree.font()
+        font.setBold(True)
+        self.lorebookTree.setFont(font)
+        self.lorebookTree.setItemDelegate(TreeItemWrapDelegate(self.lorebookTree))
+        self.lorebookTree.viewport().installEventFilter(self.wheel_filter)
+        self.zoomController.register_widget(self.lorebookTree)
+
+        for entry in card.character_book["entries"]:
+            entry_name = entry.get("name", entry.get("comment", ""))
+            if not entry_name.strip():
+                entry_name = "[no name]"
+            item = QTreeWidgetItem([entry_name])
+            entry_keys = entry.get("keys", [])
+            keys = "" if len(entry_keys) > 0 else "[no keys]"
+            key_num = 0
+            for key in entry_keys:
+                if key:
+                    if key_num != 0:
+                        keys += ", "
+                    keys += key
+                key_num += 1
+
+            keysItem = QTreeWidgetItem([keys])
+            keysItem.setBackground(0, QColor("#000"))
+            keysItem.setForeground(0, QColor("#777"))
+            font = keysItem.font(0)
+            font.setBold(False)
+            font.setItalic(True)
+            keysItem.setFont(0, font)
+            item.addChild(keysItem)
+
+            contentItem = QTreeWidgetItem([entry.get("content", "")])
+            contentItem.setBackground(0, QColor("#222"))
+            contentItem.setForeground(0, QColor("#ccc"))
+            font = contentItem.font(0)
+            font.setBold(False)
+            contentItem.setFont(0, font)
+            item.addChild(contentItem)
+
+            self.lorebookTree.addTopLevelItem(item)
+
+        self.tabsWidget.addTab(self.lorebookTree, f"Lorebook ({entriesCount})")
 
     def _addSection(self, title: str, content: str):
         """
@@ -731,3 +807,24 @@ class DataPanel(QWidget):
                 self.selected_tab_code = tab_code
                 return
         self.selected_tab_code = 0
+
+
+class TreeItemWrapDelegate(QStyledItemDelegate):
+    def sizeHint(self, option, index):
+        text = index.data()
+
+        if not text:
+            return super().sizeHint(option, index)
+
+        view = option.widget
+        width = view.columnWidth(index.column()) - 10
+
+        doc = QTextDocument()
+        doc.setDefaultFont(option.font)
+        doc.setTextWidth(max(0, width))
+        doc.setPlainText(text)
+
+        return QSize(
+            int(doc.idealWidth()),
+            int(doc.size().height()) + 6
+        )
